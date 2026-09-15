@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  kr-agentes:
+    build: .
+    container_name: kr_agentes_hub
+    restart: always
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      # Mantém os dados do acervo e saídas persistidos no servidor
+      - ./acervo:/app/acervo
+      - ./output:/app/output
+      - ./assets:/app/assets

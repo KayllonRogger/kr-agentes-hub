@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 
 # Importa todos os departamentos especializados
 from grafo_agentes import (
@@ -24,7 +25,7 @@ from gerar_documento import renderizar_proposta
 # 1. Carrega configurações do .env
 load_dotenv()
 
-# 2. Inicializa o modelo Gemini
+# 2. Inicializa o modelo
 llm = ChatGoogleGenerativeAI(
     model="gemini-3.5-flash-lite",
 )
@@ -34,25 +35,37 @@ def extrair_texto(resposta) -> str:
         return resposta.content[0].get('text', '')
     return str(resposta.content)
 
-# 3. Estado do Cérebro Central
+# 3. Estado do Cérebro Central com Histórico de Memória
 class EstadoCerebro(TypedDict):
     entrada_usuario: str
     categoria: str
+    historico_conversa: list[dict]
     resposta_final: str
 
-# 4. Nó Supervisor: Roteador Geral dos 7 Departamentos
+# 4. Nó Supervisor com Memória Contextual
 def supervisor_triagem(estado: EstadoCerebro):
-    print("\n🧠 [Cérebro Central] Analisando solicitação e roteando entre os departamentos...")
-    prompt = """Você é o Cérebro Central de Operações da KR Engenharia.
-Classifique a solicitação do usuário em exatamente UMA das sete categorias abaixo:
+    print("\n🧠 [Cérebro Central] Analisando mensagem considerando o histórico recente...")
+    
+    # Monta resumo do histórico recente para contextualizar follow-ups
+    historico_texto = ""
+    for msg in estado.get("historico_conversa", [])[-4:]:
+        papel = "Usuário" if msg["role"] == "user" else "Assistente"
+        historico_texto += f"{papel}: {msg['content'][:200]}...\n"
 
-1. PROPOSTA: Solicitação de cliente, anomalia em subestação, cálculo no ETAP ou elaboração de proposta técnica.
-2. MARKETING: Criação de artigos técnicos, postagens para o LinkedIn ou estudos de caso de projetos passados.
-3. PROSPECCAO: Estratégia de abordagem comercial, mapeamento de decisores ou cadências de contato B2B.
-4. EDITAL: Análise de Termo de Referência (TR), edital de concorrência ou lista de desvios técnicos de escopo.
-5. POS_OBRA: DataBook As-Built, minuta de ART para o CREA-MG ou follow-up pós-energização.
-6. BACKOFFICE: Liberação de equipe para campo (NR-10, NR-35, ASO), controle de calibração RBC de instrumentos ou faturamento e medições.
-7. CONSULTA: Dúvidas gerais sobre normas (IEEE, IEC), relés, parametrização ou KR Engenharia.
+    prompt = f"""Você é o Cérebro Central de Operações da KR Engenharia.
+Considere o histórico da conversa recente (se houver) para entender continuações e ajustes:
+
+HISTÓRICO RECENTE:
+{historico_texto if historico_texto else "Início da conversa."}
+
+Classifique a solicitação do usuário em exatamente UMA das sete categorias abaixo:
+1. PROPOSTA: Demandas de estudos elétricos, falhas em subestações ou elaboração/ajuste de propostas técnicas.
+2. MARKETING: Criação ou resumo de artigos e posts para o LinkedIn.
+3. PROSPECCAO: Estratégias de abordagem comercial e cadências para EPCistas/indústrias.
+4. EDITAL: Análise de especificações técnicas, TRs e lista de desvios.
+5. POS_OBRA: DataBook As-Built, ART CREA-MG e protocolos pós-energização.
+6. BACKOFFICE: Liberação de equipe (NRs/ASO), calibração RBC de instrumentos e medições.
+7. CONSULTA: Dúvidas gerais sobre normas ou engenharia elétrica.
 
 Responda APENAS com a palavra da categoria (PROPOSTA, MARKETING, PROSPECCAO, EDITAL, POS_OBRA, BACKOFFICE ou CONSULTA)."""
 
@@ -117,7 +130,7 @@ def departamento_edital(estado: EstadoCerebro):
     os.makedirs("output", exist_ok=True)
     with open("output/analise_edital.md", "w", encoding="utf-8") as f:
         f.write(relatorio)
-    return {"resposta_final": f"Auditoria de conformidade e desvios salva em 'output/analise_edital.md'.\n\nResumo:\n{relatorio[:300]}..."}
+    return {"resposta_final": f"Auditoria salva em 'output/analise_edital.md'.\n\nResumo:\n{relatorio[:300]}..."}
 
 def departamento_pos_obra(estado: EstadoCerebro):
     print("\n📦 -> Ativando DEPARTAMENTO DE SUCESSO DO CLIENTE...")
@@ -125,7 +138,7 @@ def departamento_pos_obra(estado: EstadoCerebro):
     os.makedirs("output", exist_ok=True)
     with open("output/plano_pos_comissionamento.md", "w", encoding="utf-8") as f:
         f.write(pacote)
-    return {"resposta_final": f"DataBook e minuta de ART salvos em 'output/plano_pos_comissionamento.md'.\n\nResumo:\n{pacote[:300]}..."}
+    return {"resposta_final": f"DataBook e ART salvos em 'output/plano_pos_comissionamento.md'.\n\nResumo:\n{pacote[:300]}..."}
 
 def departamento_backoffice(estado: EstadoCerebro):
     print("\n📋 -> Ativando DEPARTAMENTO DE BACKOFFICE E CONFORMIDADE...")
@@ -133,19 +146,19 @@ def departamento_backoffice(estado: EstadoCerebro):
     os.makedirs("output", exist_ok=True)
     with open("output/conformidade_backoffice.md", "w", encoding="utf-8") as f:
         f.write(relatorio)
-    return {"resposta_final": f"Dossiê de conformidade e medição salvo em 'output/conformidade_backoffice.md'.\n\nResumo:\n{relatorio[:300]}..."}
+    return {"resposta_final": f"Dossiê salvo em 'output/conformidade_backoffice.md'.\n\nResumo:\n{relatorio[:300]}..."}
 
 def departamento_consulta(estado: EstadoCerebro):
     print("\n💡 -> Ativando CONSULTORIA TÉCNICA DIRETA...")
     prompt = """Você é o Consultor Técnico Especialista da KR Engenharia.
-Responda à dúvida técnica do usuário com base no rigor normativo da engenharia elétrica de potência (IEEE, IEC 61850, ABNT)."""
+Responda com base no rigor normativo (IEEE, IEC 61850, ABNT) e considere o histórico anterior se for uma continuação de pergunta."""
     resp = llm.invoke([
         SystemMessage(content=prompt),
         HumanMessage(content=estado["entrada_usuario"])
     ])
     return {"resposta_final": extrair_texto(resp)}
 
-# 6. Grafo Geral com Roteador Supervisor
+# 6. Grafo com Checkpointer de Memória (MemorySaver)
 def escolher_caminho(estado: EstadoCerebro) -> Literal[
     "depto_propostas", "depto_marketing", "depto_prospeccao", 
     "depto_edital", "depto_pos_obra", "depto_backoffice", "depto_consulta"
@@ -181,38 +194,43 @@ workflow.add_edge("depto_pos_obra", END)
 workflow.add_edge("depto_backoffice", END)
 workflow.add_edge("depto_consulta", END)
 
-cerebro = workflow.compile()
+# Compila o grafo anexando a memória persistente
+memoria = MemorySaver()
+cerebro = workflow.compile(checkpointer=memoria)
 
-# 7. Interface Interativa no Terminal
+# 7. Execução Interativa no Terminal com Memória Contínua
 if __name__ == "__main__":
     print("="*60)
-    print("🧠 CÉREBRO CENTRAL KR ENGENHARIA - SISTEMA DE 7 DEPARTAMENTOS")
+    print("🧠 CÉREBRO CENTRAL KR ENGENHARIA (COM MEMÓRIA DE SESSÃO)")
     print("="*60)
-    print("Departamentos ativos:")
-    print(" 1. Propostas de Engenharia & Estudos ETAP")
-    print(" 2. Marketing Técnico (LinkedIn)")
-    print(" 3. Prospecção Outbound B2B")
-    print(" 4. Auditoria de Editais & Lista de Desvios")
-    print(" 5. Pós-Comissionamento, DataBook & ART (CREA-MG)")
-    print(" 6. Backoffice, Conformidade HSE & Medições Fiscais")
-    print(" 7. Consultoria Normativa Direta")
+    print("O sistema agora mantém o contexto da conversa ativa.")
     print("(Digite 'sair' para encerrar)\n")
+
+    # Configuração da sessão ativa de memória
+    config_sessao = {"configurable": {"thread_id": "sessao-kr-diretor"}}
+    historico = []
 
     while True:
         comando = input("\n👉 O que você precisa hoje? ").strip()
         if not comando:
             continue
         if comando.lower() in ["sair", "exit", "quit"]:
-            print("Encerrando o Cérebro Central. Até logo!")
+            print("Encerrando a sessão do Cérebro Central. Até logo!")
             break
-            
+
+        historico.append({"role": "user", "content": comando})
+        
         resultado = cerebro.invoke({
             "entrada_usuario": comando,
             "categoria": "",
+            "historico_conversa": historico,
             "resposta_final": ""
-        })
+        }, config=config_sessao)
+        
+        resposta = resultado["resposta_final"]
+        historico.append({"role": "assistant", "content": resposta})
         
         print("\n" + "="*60)
         print("RESPOSTA DO CÉREBRO CENTRAL:")
         print("="*60)
-        print(resultado["resposta_final"])
+        print(resposta)
