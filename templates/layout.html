@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Proposta Técnica Comercial - KR Engenharia</title>
+    <link rel="stylesheet" href="../templates/styles.css">
+</head>
+<body>
+    <!-- MARCA D'ÁGUA -->
+    {bloco_watermark}
+
+    <!-- BOTÃO DE IMPRESSÃO (NÃO IMPRESSO) -->
+    <div class="no-print" style="background: #edf2f7; padding: 12px; margin-bottom: 20px; border-radius: 6px; text-align: center;">
+        <span style="font-size: 10pt; color: #4a5568;">Visualização A4 Pronta. </span>
+        <button onclick="window.print()" style="background: #2b6cb0; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">Salvar em PDF / Imprimir</button>
+    </div>
+
+    <!-- CABEÇALHO OFICIAL -->
+    <div class="header-kr">
+        <div class="header-left">
+            {bloco_logo}
+            <div>
+                <h1>KR ENGENHARIA</h1>
+                <div class="sub">Consultoria Técnica Especialista • SAS & Proteção de Sistemas de Potência</div>
+            </div>
+        </div>
+        <div class="doc-meta">
+            <strong>Responsável Técnico:</strong> Eng. Kayllon Rogger Nunes<br>
+            <strong>CREA-MG:</strong> nº 141854962-2<br>
+            Belo Horizonte - MG
+        </div>
+    </div>
+
+    <!-- CONTEÚDO TÉCNICO GERADO PELOS AGENTES -->
+    <div class="content">
+        {conteudo_html}
+    </div>
+
+    <!-- RODAPÉ -->
+    <div class="footer-kr">
+        KR Consultoria e Soluções em Engenharia LTDA • www.krconsultoria.com.br • kayllon@krconsultoria.com.br
+    </div>
+</body>
+</html>

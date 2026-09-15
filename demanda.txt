@@ -1,0 +1,5 @@
+Cliente: Gerdau Aços Longos
+Tensão: Barramento 13,8 kV / Alimentadores de Laminação
+Problema: Atuação indevida da função 51N (sobrecorrente de neutro) durante a energização em vazio de transformadores de 13,8/0,48 kV.
+Equipamentos: Relés Schneider Easergy P5 e Siemens SIPROTEC 5.
+Necessidade: Revisão urgente dos ajustes de proteção de neutro e validação das correntes de inrush para liberação de energização no próximo final de semana.

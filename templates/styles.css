@@ -1,0 +1,163 @@
+@page {
+    size: A4;
+    margin: 20mm 15mm 20mm 15mm;
+}
+
+body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #2c3e50;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    background-color: #ffffff;
+    position: relative;
+}
+
+/* MARCA D'ÁGUA */
+.watermark-img {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 480px;
+    max-height: 480px;
+    width: auto;
+    height: auto;
+    opacity: 0.05;
+    z-index: -1;
+    pointer-events: none;
+    filter: grayscale(100%);
+}
+
+.watermark-text {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-35deg);
+    font-size: 65pt;
+    font-weight: 900;
+    color: #1a365d;
+    opacity: 0.04;
+    z-index: -1;
+    pointer-events: none;
+    white-space: nowrap;
+    letter-spacing: 6px;
+}
+
+/* CABEÇALHO */
+.header-kr {
+    border-bottom: 3px solid #1a365d;
+    padding-bottom: 12px;
+    margin-bottom: 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.logo-header {
+    max-height: 52px;
+    width: auto;
+    object-fit: contain;
+}
+
+.header-kr h1 {
+    margin: 0;
+    font-size: 19pt;
+    color: #1a365d;
+    letter-spacing: 0.5px;
+}
+
+.header-kr .sub {
+    font-size: 8.5pt;
+    color: #718096;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.header-kr .doc-meta {
+    text-align: right;
+    font-size: 8.5pt;
+    color: #4a5568;
+}
+
+/* TIPOGRAFIA E ELEMENTOS */
+h1, h2, h3, h4 {
+    color: #1a365d;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+h2 {
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 5px;
+    font-size: 13pt;
+}
+
+h3 {
+    font-size: 11pt;
+    color: #2b6cb0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    font-size: 9pt;
+}
+
+th, td {
+    border: 1px solid #cbd5e0;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #ebf8ff;
+    color: #2b6cb0;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background-color: #f7fafc;
+}
+
+ul, ol {
+    padding-left: 20px;
+    font-size: 9.5pt;
+}
+
+li {
+    margin-bottom: 4px;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background: #e2e8f0;
+    margin: 20px 0;
+}
+
+/* RODAPÉ */
+.footer-kr {
+    margin-top: 40px;
+    border-top: 1px solid #cbd5e0;
+    padding-top: 10px;
+    font-size: 8pt;
+    color: #a0aec0;
+    text-align: center;
+}
+
+@media print {
+    body {
+        padding: 0;
+    }
+    .no-print {
+        display: none;
+    }
+}
