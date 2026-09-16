@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 # Carrega variáveis de ambiente do .env
 load_dotenv()
 
-# Modelo de IA padrão (compatível com a API oficial do Google Gemini)
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# Modelo de IA padrão (recomendado pela API oficial do Google Gemini)
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
 # Credenciais de acesso ao painel
 APP_USUARIO = os.getenv("APP_USUARIO", "admin")

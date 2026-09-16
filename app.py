@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 import streamlit as st
 
@@ -31,6 +32,17 @@ from servico_email import (
     ler_caixa_entrada,
     analisar_intencao_resposta
 )
+from prospeccao_autonoma import (
+    CATALOGO_SETORES,
+    executar_varredura_setor,
+    carregar_fila_campanhas,
+    atualizar_lead_campanha,
+    excluir_lead_campanha,
+    limpar_fila_campanhas,
+    gerar_links_prospeccao,
+    deduzir_padroes_email
+)
+from documentos_kr import compilar_documentos_institucionais
 
 # Configuração da Página Web
 st.set_page_config(
@@ -316,91 +328,325 @@ with tab_marketing:
 # ABA 5: PROSPECÇÃO OUTBOUND
 # -------------------------------------------------------------
 with tab_prospeccao:
-    st.subheader("Inteligência Comercial & Abordagem B2B no LinkedIn")
-    col_alvo1, col_alvo2 = st.columns(2)
-    with col_alvo1:
-        empresa_alvo = st.text_input("Empresa-Alvo / Planta Industrial:", placeholder="Ex: Mineração Vale - Carajás ou EPCista Andrade Gutierrez")
-    with col_alvo2:
-        servico_foco = st.text_input("Serviço em Foco:", placeholder="Ex: Estudos no ETAP, Comissionamento TAC ou Redes IEC 61850")
-        
-    cargo_busca = st.selectbox("Cargo do Decisor a Buscar no LinkedIn:", [
-        "Gerente de Manutenção Elétrica",
-        "Coordenador de Comissionamento",
-        "Gerente de Engenharia",
-        "Engenheiro Eletricista de Proteção",
-        "Diretor de Operações"
-    ])
-    
-    btn_gerar_cadencia = st.button("Gerar Abordagem e Link de Busca", type="primary")
-    
-    if btn_gerar_cadencia and empresa_alvo:
-        with st.spinner("Lucas Campos mapeando decisores e estruturando abordagem..."):
-            try:
-                cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
-                link_linkedin = gerar_link_busca_linkedin(empresa_alvo, cargo_busca)
-                salvar_markdown_saida("cadencia_prospeccao.md", cadencia)
-                
-                st.session_state.cadencia_atual = cadencia
-                st.session_state.empresa_atual = empresa_alvo
-                    
-                st.success("Estratégia de Abordagem Concluída!")
-                st.link_button(
-                    label=f"🔗 Abrir Busca de {cargo_busca} na {empresa_alvo} no LinkedIn",
-                    url=link_linkedin
-                )
-                st.markdown(cadencia)
-            except Exception as e:
-                st.error(f"Erro ao gerar prospecção: {e}")
+    st.subheader("🎯 Inteligência Comercial & Prospecção Outbound B2B")
+    st.caption("Lucas Campos (SDR) — Mapeamento autônomo de decisores no LinkedIn, operadores booleanos (Google X-Ray) e disparos com portfólio oficial via Titan SMTP.")
 
-    if "cadencia_atual" in st.session_state:
+    modo_prospeccao = st.radio(
+        "Modo de Operação Comercial:",
+        ["🤖 Motor de Campanhas Autônomas (Lucas SDR)", "🎯 Abordagem Pontual Sob Demanda"],
+        horizontal=True,
+        key="radio_modo_prospeccao"
+    )
+
+    if modo_prospeccao == "🤖 Motor de Campanhas Autônomas (Lucas SDR)":
+        docs_institucionais = compilar_documentos_institucionais()
+        fila_campanhas = carregar_fila_campanhas()
+        total_leads = len(fila_campanhas)
+        prontos_disparo = len([l for l in fila_campanhas if l.get("status") == "PRONTO_PARA_DISPARO"])
+        enviados = len([l for l in fila_campanhas if l.get("status") == "ENVIADO"])
+        setores_presentes = len(set(l.get("setor") for l in fila_campanhas if l.get("setor")))
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Leads Mapeados", total_leads)
+        m2.metric("Prontos para Disparo", prontos_disparo)
+        m3.metric("Disparados Oficialmente", enviados)
+        m4.metric("Setores em Foco", setores_presentes)
+
         st.divider()
-        st.markdown("### 📧 Disparo Oficial de E-mail via Lucas Campos")
-        st.caption("Envio autônomo diretamente da conta institucional `lucas.campos@krconsultoria.com.br` via Titan SMTP.")
-        
-        col_email1, col_email2 = st.columns(2)
-        with col_email1:
-            destinatario_email = st.text_input("E-mail do Decisor/Cliente:", placeholder="ex: gerente.eletrica@mineradora.com.br", key="input_dest_email")
-            assunto_padrao = f"KR Engenharia | Diagnóstico Técnico em {st.session_state.get('empresa_atual', 'Sistemas de Potência')}"
-            assunto_email = st.text_input("Assunto do E-mail:", value=assunto_padrao, key="input_assunto_email")
-            
-        with col_email2:
-            st.write("")
-            st.write("")
-            col_b1, col_b2 = st.columns(2)
-            with col_b1:
-                btn_enviar_email = st.button("🚀 Disparar E-mail Oficial", type="primary", key="btn_enviar_lucas")
-            with col_b2:
-                btn_testar_conexao = st.button("🔍 Testar Conexão Titan", key="btn_testar_titan")
 
-        if btn_testar_conexao:
-            with st.spinner("Testando autenticação de Lucas Campos no servidor Titan..."):
-                res_test = testar_conexao_smtp("LUCAS")
-                if res_test["sucesso"]:
-                    st.success(f"✅ {res_test['mensagem']} ({res_test.get('modo', '')})")
-                else:
-                    st.error(f"❌ {res_test['motivo']}")
-                    if "dica" in res_test:
-                        st.info(f"💡 {res_test['dica']}")
+        # Painel de Disparo de Nova Varredura
+        with st.expander("🚀 Iniciar Nova Varredura Autônoma no Mercado", expanded=(total_leads == 0)):
+            st.markdown("##### Parametrização da Varredura pelo Lucas Campos")
+            col_v1, col_v2, col_v3 = st.columns([2, 2, 1])
+            with col_v1:
+                opcoes_setor = {k: f"{v['nome']} ({len(v['empresas'])} plantas mapeadas)" for k, v in CATALOGO_SETORES.items()}
+                setor_escolhido = st.selectbox(
+                    "Setor Industrial Alvo:",
+                    list(opcoes_setor.keys()),
+                    format_func=lambda x: opcoes_setor[x],
+                    key="sel_setor_varredura"
+                )
+            with col_v2:
+                foco_tecnico = st.text_input(
+                    "Especialidade Foco:",
+                    value="Estudos de Proteção no ETAP e Comissionamento TAF/TAC",
+                    key="input_foco_varredura"
+                )
+            with col_v3:
+                plantas_disponiveis = len(CATALOGO_SETORES[setor_escolhido]["empresas"])
+                limite_varredura = st.number_input(
+                    "Plantas por Ciclo:",
+                    min_value=1,
+                    max_value=plantas_disponiveis,
+                    value=min(2, plantas_disponiveis),
+                    key="num_plantas_varredura"
+                )
 
-        if btn_enviar_email:
-            if not destinatario_email or "@" not in destinatario_email:
-                st.warning("Por favor, informe um endereço de e-mail válido para o destinatário.")
-            else:
-                with st.spinner(f"Lucas Campos conectando à conta e disparando e-mail para {destinatario_email}..."):
-                    res_envio = enviar_email_funcionario(
-                        funcionario_id="LUCAS",
-                        destinatario=destinatario_email,
-                        assunto=assunto_email,
-                        corpo_texto=st.session_state.cadencia_atual
+            if st.button("🔎 Executar Varredura com Lucas Campos", type="primary", key="btn_exec_varredura"):
+                nome_setor = CATALOGO_SETORES[setor_escolhido]["nome"]
+                with st.spinner(f"Lucas Campos mapeando plantas em {nome_setor}, gerando dorks do LinkedIn e redigindo abordagens técnicas com anexos..."):
+                    try:
+                        novos = executar_varredura_setor(
+                            chave_setor=setor_escolhido,
+                            especialidade_foco=foco_tecnico,
+                            limite=int(limite_varredura)
+                        )
+                        st.success(f"✅ {len(novos)} novas empresas do setor '{nome_setor}' mapeadas e adicionadas à fila de disparo!")
+                        st.rerun()
+                    except Exception as err:
+                        st.error(f"Erro durante a varredura autônoma: {err}")
+
+        # Seção de Documentos Institucionais Anexados
+        with st.expander("📎 Documentos Oficiais Anexados aos E-mails (Portfólio & Carta de Apresentação)"):
+            st.caption("Estes documentos são automaticamente gerados e incluídos nos disparos de prospecção do Lucas Campos.")
+            col_doc1, col_doc2 = st.columns(2)
+            with col_doc1:
+                st.markdown("**1. Carta de Apresentação Institucional (HTML A4)**")
+                st.caption("Layout corporativo executivo com selo KR, descrição de disciplinas, cases e ART.")
+                try:
+                    with open(docs_institucionais["carta_html"], "r", encoding="utf-8") as f:
+                        conteudo_carta = f.read()
+                    st.download_button(
+                        label="📥 Baixar Carta de Apresentação (HTML)",
+                        data=conteudo_carta,
+                        file_name="Carta_Apresentacao_KR_Engenharia.html",
+                        mime="text/html",
+                        key="btn_down_carta"
                     )
-                    if res_envio["sucesso"]:
-                        st.success(f"✅ {res_envio['mensagem']}")
-                    else:
-                        st.error(f"❌ {res_envio['erro']}")
-                        st.info("💡 Se o Titan recusar autenticação, certifique-se de que o acesso SMTP/IMAP está ativado no painel Titan ou acesse primeiro via webmail (https://mail.titan.email).")
+                except Exception:
+                    st.info("Documento sendo compilado...")
+            with col_doc2:
+                st.markdown("**2. Portfólio Técnico Resumido (TXT)**")
+                st.caption("Resumo executivo de competências (ETAP, IEC 61850, TAF/TAC) e cases de referência.")
+                try:
+                    with open(docs_institucionais["portfolio_txt"], "r", encoding="utf-8") as f:
+                        conteudo_port = f.read()
+                    st.download_button(
+                        label="📥 Baixar Portfólio Resumido (TXT)",
+                        data=conteudo_port,
+                        file_name="Portfolio_Tecnico_KR_Engenharia.txt",
+                        mime="text/plain",
+                        key="btn_down_port"
+                    )
+                except Exception:
+                    st.info("Documento sendo compilado...")
 
-        with st.expander("👁️ Ver Prévia da Assinatura Oficial do E-mail (com Logomarca KR)"):
-            st.markdown(gerar_assinatura_html(CONTAS_FUNCIONARIOS["LUCAS"]), unsafe_allow_html=True)
+        st.divider()
+
+        # Fila de Oportunidades
+        col_hdr1, col_hdr2 = st.columns([3, 1])
+        with col_hdr1:
+            st.markdown("### 📋 Fila de Oportunidades & Disparos Oficiais")
+        with col_hdr2:
+            if total_leads > 0:
+                if st.button("🗑️ Limpar Fila de Campanhas", key="btn_limpar_fila"):
+                    limpar_fila_campanhas()
+                    st.rerun()
+
+        if total_leads == 0:
+            st.info("Nenhuma oportunidade na fila no momento. Clique em 'Iniciar Nova Varredura Autônoma no Mercado' acima para começar.")
+        else:
+            for lead in fila_campanhas:
+                lid = lead["id"]
+                st_badge = "🟡 PRONTO PARA DISPARO" if lead.get("status") == "PRONTO_PARA_DISPARO" else ("🟢 ENVIADO" if lead.get("status") == "ENVIADO" else "🔴 ERRO")
+                
+                with st.expander(f"🏢 {lead.get('empresa')} — {lead.get('setor')} [{st_badge}]", expanded=(lead.get("status") == "PRONTO_PARA_DISPARO")):
+                    c_info1, c_info2 = st.columns(2)
+                    with c_info1:
+                        st.markdown(f"**Tensão da Planta:** `{lead.get('tensao', 'N/D')}`")
+                        st.markdown(f"**Cargo do Decisor Alvo:** `{lead.get('cargo_alvo', 'N/D')}`")
+                    with c_info2:
+                        st.markdown(f"**Domínio Corporativo:** `{lead.get('dominio', 'N/D')}`")
+                        st.markdown(f"**Status Atual:** `{st_badge}`" + (f" ({lead.get('data_envio')})" if lead.get('data_envio') else ""))
+
+                    st.markdown("#### ⚙️ Engrenagens de Prospecção de Mercado (LinkedIn & Dorking)")
+                    col_gear1, col_gear2 = st.columns(2)
+                    with col_gear1:
+                        st.link_button(
+                            label=f"🔗 1. Abrir LinkedIn Direct ({lead.get('cargo_alvo')})",
+                            url=lead.get("link_linkedin", "#"),
+                            help="Acessa a busca direta de pessoas logadas no LinkedIn."
+                        )
+                    with col_gear2:
+                        st.link_button(
+                            label="🔎 2. Abrir Google X-Ray Search (Operador Booleano)",
+                            url=lead.get("link_xray", "#"),
+                            help="Pesquisa avançada que indexa perfis públicos do LinkedIn sem travas ou limites."
+                        )
+
+                    padroes_str = " | ".join([f"`{p}`" for p in lead.get("padroes_email", [])])
+                    st.caption(f"💡 **Padrões de E-mail B2B Deduzidos:** {padroes_str}")
+
+                    st.markdown("#### ✉️ Proposta de E-mail Estruturada por Lucas Campos")
+                    
+                    email_dest_input = st.text_input(
+                        "E-mail do Decisor Encontrado (ou corporativo geral):",
+                        value=lead.get("email_destinatario", ""),
+                        key=f"dest_{lid}"
+                    )
+                    assunto_input = st.text_input(
+                        "Linha de Assunto:",
+                        value=lead.get("assunto", ""),
+                        key=f"ass_{lid}"
+                    )
+                    corpo_input = st.text_area(
+                        "Corpo da Mensagem (Hiperpersonalizado de Engenharia para Engenharia):",
+                        value=lead.get("corpo_email", ""),
+                        height=220,
+                        key=f"corp_{lid}"
+                    )
+
+                    st.markdown("📎 **Anexos que acompanharão o disparo:**")
+                    for anexo in lead.get("anexos", []):
+                        st.write(f"- `{os.path.basename(anexo)}`")
+
+                    col_act1, col_act2, col_act3 = st.columns([2, 1, 1])
+                    with col_act1:
+                        if lead.get("status") != "ENVIADO":
+                            if st.button("🚀 Disparar E-mail com Anexos (Titan SMTP)", key=f"btn_send_{lid}", type="primary"):
+                                if not email_dest_input or "@" not in email_dest_input:
+                                    st.warning("Informe um e-mail válido para envio.")
+                                else:
+                                    with st.spinner(f"Lucas Campos conectando à conta Titan e enviando para {email_dest_input}..."):
+                                        res_envio = enviar_email_funcionario(
+                                            funcionario_id="LUCAS",
+                                            destinatario=email_dest_input,
+                                            assunto=assunto_input,
+                                            corpo_texto=corpo_input,
+                                            anexos=lead.get("anexos", [])
+                                        )
+                                        if res_envio["sucesso"]:
+                                            st.success(f"✅ {res_envio['mensagem']}")
+                                            atualizar_lead_campanha(lid, {
+                                                "status": "ENVIADO",
+                                                "email_destinatario": email_dest_input,
+                                                "assunto": assunto_input,
+                                                "corpo_email": corpo_input,
+                                                "data_envio": time.strftime("%d/%m/%Y %H:%M"),
+                                                "resultado_envio": res_envio["mensagem"]
+                                            })
+                                            st.rerun()
+                                        else:
+                                            st.error(f"❌ {res_envio['erro']}")
+                                            atualizar_lead_campanha(lid, {
+                                                "status": "ERRO",
+                                                "resultado_envio": res_envio["erro"]
+                                            })
+                        else:
+                            st.success(f"✅ E-mail enviado com sucesso em {lead.get('data_envio')} para `{lead.get('email_destinatario')}`!")
+                            if st.button("🔄 Reenviar E-mail", key=f"btn_resend_{lid}"):
+                                atualizar_lead_campanha(lid, {"status": "PRONTO_PARA_DISPARO"})
+                                st.rerun()
+
+                    with col_act2:
+                        if st.button("💾 Salvar Alterações", key=f"btn_save_{lid}"):
+                            atualizar_lead_campanha(lid, {
+                                "email_destinatario": email_dest_input,
+                                "assunto": assunto_input,
+                                "corpo_email": corpo_input
+                            })
+                            st.success("Alterações salvas!")
+
+                    with col_act3:
+                        if st.button("❌ Remover Lead", key=f"btn_del_{lid}"):
+                            excluir_lead_campanha(lid)
+                            st.rerun()
+
+                    with st.expander("👁️ Assinatura Institucional Oficial que acompanhará o e-mail"):
+                        st.markdown(gerar_assinatura_html(CONTAS_FUNCIONARIOS["LUCAS"]), unsafe_allow_html=True)
+
+    else:
+        # Modo 2: Abordagem Pontual Sob Demanda
+        st.subheader("Inteligência Comercial & Abordagem B2B no LinkedIn")
+        col_alvo1, col_alvo2 = st.columns(2)
+        with col_alvo1:
+            empresa_alvo = st.text_input("Empresa-Alvo / Planta Industrial:", placeholder="Ex: Mineração Vale - Carajás ou EPCista Andrade Gutierrez")
+        with col_alvo2:
+            servico_foco = st.text_input("Serviço em Foco:", placeholder="Ex: Estudos no ETAP, Comissionamento TAC ou Redes IEC 61850")
+            
+        cargo_busca = st.selectbox("Cargo do Decisor a Buscar no LinkedIn:", [
+            "Gerente de Manutenção Elétrica",
+            "Coordenador de Comissionamento",
+            "Gerente de Engenharia",
+            "Engenheiro Eletricista de Proteção",
+            "Diretor de Operações"
+        ])
+        
+        btn_gerar_cadencia = st.button("Gerar Abordagem e Link de Busca", type="primary")
+        
+        if btn_gerar_cadencia and empresa_alvo:
+            with st.spinner("Lucas Campos mapeando decisores e estruturando abordagem..."):
+                try:
+                    cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
+                    link_linkedin = gerar_link_busca_linkedin(empresa_alvo, cargo_busca)
+                    salvar_markdown_saida("cadencia_prospeccao.md", cadencia)
+                    
+                    st.session_state.cadencia_atual = cadencia
+                    st.session_state.empresa_atual = empresa_alvo
+                        
+                    st.success("Estratégia de Abordagem Concluída!")
+                    st.link_button(
+                        label=f"🔗 Abrir Busca de {cargo_busca} na {empresa_alvo} no LinkedIn",
+                        url=link_linkedin
+                    )
+                    st.markdown(cadencia)
+                except Exception as e:
+                    st.error(f"Erro ao gerar prospecção: {e}")
+
+        if "cadencia_atual" in st.session_state:
+            st.divider()
+            st.markdown("### 📧 Disparo Oficial de E-mail via Lucas Campos")
+            st.caption("Envio autônomo diretamente da conta institucional `lucas.campos@krconsultoria.com.br` via Titan SMTP.")
+            
+            docs_institucionais = compilar_documentos_institucionais()
+            anexar_documentos = st.checkbox("📎 Anexar Carta de Apresentação e Portfólio Oficial da KR", value=True, key="chk_anexar_pontual")
+
+            col_email1, col_email2 = st.columns(2)
+            with col_email1:
+                destinatario_email = st.text_input("E-mail do Decisor/Cliente:", placeholder="ex: gerente.eletrica@mineradora.com.br", key="input_dest_email")
+                assunto_padrao = f"KR Engenharia | Diagnóstico Técnico em {st.session_state.get('empresa_atual', 'Sistemas de Potência')}"
+                assunto_email = st.text_input("Assunto do E-mail:", value=assunto_padrao, key="input_assunto_email")
+                
+            with col_email2:
+                st.write("")
+                st.write("")
+                col_b1, col_b2 = st.columns(2)
+                with col_b1:
+                    btn_enviar_email = st.button("🚀 Disparar E-mail Oficial", type="primary", key="btn_enviar_lucas")
+                with col_b2:
+                    btn_testar_conexao = st.button("🔍 Testar Conexão Titan", key="btn_testar_titan")
+
+            if btn_testar_conexao:
+                with st.spinner("Testando autenticação de Lucas Campos no servidor Titan..."):
+                    res_test = testar_conexao_smtp("LUCAS")
+                    if res_test["sucesso"]:
+                        st.success(f"✅ {res_test['mensagem']} ({res_test.get('modo', '')})")
+                    else:
+                        st.error(f"❌ {res_test['motivo']}")
+                        if "dica" in res_test:
+                            st.info(f"💡 {res_test['dica']}")
+
+            if btn_enviar_email:
+                if not destinatario_email or "@" not in destinatario_email:
+                    st.warning("Por favor, informe um endereço de e-mail válido para o destinatário.")
+                else:
+                    anexos_envio = docs_institucionais["anexos_padrao"] if anexar_documentos else None
+                    with st.spinner(f"Lucas Campos conectando à conta e disparando e-mail para {destinatario_email}..."):
+                        res_envio = enviar_email_funcionario(
+                            funcionario_id="LUCAS",
+                            destinatario=destinatario_email,
+                            assunto=assunto_email,
+                            corpo_texto=st.session_state.cadencia_atual,
+                            anexos=anexos_envio
+                        )
+                        if res_envio["sucesso"]:
+                            st.success(f"✅ {res_envio['mensagem']}")
+                        else:
+                            st.error(f"❌ {res_envio['erro']}")
+                            st.info("💡 Se o Titan recusar autenticação, certifique-se de que o acesso SMTP/IMAP está ativado no painel Titan ou acesse primeiro via webmail (https://mail.titan.email).")
+
+            with st.expander("👁️ Ver Prévia da Assinatura Oficial do E-mail (com Logomarca KR)"):
+                st.markdown(gerar_assinatura_html(CONTAS_FUNCIONARIOS["LUCAS"]), unsafe_allow_html=True)
 
 # -------------------------------------------------------------
 # ABA 6: CAIXA DE ENTRADA (TITAN IMAP)
