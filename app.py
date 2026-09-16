@@ -3,7 +3,7 @@ import uuid
 import streamlit as st
 
 # Módulos centrais refatorados
-from config import APP_USUARIO, APP_SENHA, DADOS_EMPRESA
+from config import APP_USUARIO, APP_SENHA, DADOS_EMPRESA, CONTAS_FUNCIONARIOS
 from utils import (
     carregar_acervo_tecnico,
     gerar_link_busca_linkedin,
@@ -24,7 +24,7 @@ from agente_inteligencia import analisar_especificacao_tecnica
 from agente_pos_comissionamento import gerar_pacote_encerramento
 from agente_backoffice import processar_conformidade_backoffice
 from gerar_documento import renderizar_proposta
-from servico_email import enviar_email_funcionario, testar_conexao_smtp
+from servico_email import enviar_email_funcionario, testar_conexao_smtp, gerar_assinatura_html
 
 # Configuração da Página Web
 st.set_page_config(
@@ -391,6 +391,9 @@ with tab_prospeccao:
                     else:
                         st.error(f"❌ {res_envio['erro']}")
                         st.info("💡 Se o Titan recusar autenticação, certifique-se de que o acesso SMTP/IMAP está ativado no painel Titan ou acesse primeiro via webmail (https://mail.titan.email).")
+
+        with st.expander("👁️ Ver Prévia da Assinatura Oficial do E-mail (com Logomarca KR)"):
+            st.markdown(gerar_assinatura_html(CONTAS_FUNCIONARIOS["LUCAS"]), unsafe_allow_html=True)
 
 # -------------------------------------------------------------
 # ABA 6: AUDITORIA DE EDITAIS
