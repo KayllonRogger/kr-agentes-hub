@@ -24,7 +24,13 @@ from agente_inteligencia import analisar_especificacao_tecnica
 from agente_pos_comissionamento import gerar_pacote_encerramento
 from agente_backoffice import processar_conformidade_backoffice
 from gerar_documento import renderizar_proposta
-from servico_email import enviar_email_funcionario, testar_conexao_smtp, gerar_assinatura_html
+from servico_email import (
+    enviar_email_funcionario,
+    testar_conexao_smtp,
+    gerar_assinatura_html,
+    ler_caixa_entrada,
+    analisar_intencao_resposta
+)
 
 # Configuração da Página Web
 st.set_page_config(
@@ -139,12 +145,13 @@ with st.sidebar:
     st.caption("LangGraph + Google Gemini + Titan SMTP")
 
 # Definição das Abas
-tab_equipe, tab_cerebro, tab_propostas, tab_marketing, tab_prospeccao, tab_edital, tab_pos_obra, tab_backoffice = st.tabs([
+tab_equipe, tab_cerebro, tab_propostas, tab_marketing, tab_prospeccao, tab_inbox, tab_edital, tab_pos_obra, tab_backoffice = st.tabs([
     "🏢 Escritório da Equipe",
     "🧠 Cérebro Central",
     "⚡ Propostas Técnicas",
     "📢 Marketing B2B",
     "🎯 Prospecção Outbound",
+    "📬 Caixa de Entrada",
     "🔍 Auditoria de Editais",
     "📦 Pós-Comissionamento",
     "📋 Backoffice & HSE"
@@ -396,7 +403,61 @@ with tab_prospeccao:
             st.markdown(gerar_assinatura_html(CONTAS_FUNCIONARIOS["LUCAS"]), unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# ABA 6: AUDITORIA DE EDITAIS
+# ABA 6: CAIXA DE ENTRADA (TITAN IMAP)
+# -------------------------------------------------------------
+with tab_inbox:
+    st.subheader("📬 Central de E-mails Recebidos & Triagem com IA")
+    st.caption("Leitura das caixas de entrada dos funcionários em tempo real via Titan IMAP.")
+
+    col_inbox_f, col_inbox_cfg = st.columns([2, 1])
+    with col_inbox_f:
+        opcoes_func_inbox = {fid: f"{info['nome']} ({info['email']})" for fid, info in CONTAS_FUNCIONARIOS.items()}
+        func_inbox_sel = st.selectbox(
+            "Selecione o Funcionário:",
+            list(opcoes_func_inbox.keys()),
+            format_func=lambda x: opcoes_func_inbox[x],
+            key="sel_func_inbox"
+        )
+    with col_inbox_cfg:
+        apenas_unseen = st.checkbox("Apenas e-mails não lidos", value=False, key="chk_unseen")
+        btn_ler_inbox = st.button("🔄 Atualizar Caixa de Entrada", type="primary", key="btn_refresh_inbox")
+
+    func_nome = CONTAS_FUNCIONARIOS[func_inbox_sel]["nome"]
+    func_email = CONTAS_FUNCIONARIOS[func_inbox_sel]["email"]
+
+    with st.spinner(f"Consultando caixa postal de {func_nome} via IMAP..."):
+        dados_inbox = ler_caixa_entrada(func_inbox_sel, limite=10, apenas_nao_lidas=apenas_unseen)
+
+    if not dados_inbox["sucesso"]:
+        st.error(f"❌ Erro ao consultar a caixa postal: {dados_inbox['erro']}")
+    else:
+        total = dados_inbox["total_na_caixa"]
+        mensagens = dados_inbox["mensagens"]
+        st.info(f"📊 **Caixa Postal:** `{func_email}` • **Total de e-mails:** {total} • **Exibindo as {len(mensagens)} mensagens mais recentes**")
+
+        if not mensagens:
+            st.write("📭 Nenhum e-mail encontrado nesta caixa postal.")
+        else:
+            for i, msg in enumerate(mensagens):
+                with st.expander(f"✉️ {msg['assunto']} — De: {msg['remetente']}", expanded=(i == 0)):
+                    st.write(f"**De:** {msg['remetente']}")
+                    st.write(f"**Data:** {msg['data']}")
+                    st.write(f"**Assunto:** {msg['assunto']}")
+                    st.divider()
+                    st.markdown("**Conteúdo do E-mail:**")
+                    st.text_area("Corpo:", value=msg['corpo'], height=160, key=f"txt_inbox_{func_inbox_sel}_{msg['id']}", disabled=True)
+                    
+                    if st.button(f"🧠 Analisar Intenção com IA (Mensagem #{msg['id']})", key=f"btn_analise_{func_inbox_sel}_{msg['id']}"):
+                        with st.spinner("Analisando intenção e sugerindo resposta..."):
+                            res_analise = analisar_intencao_resposta(msg['corpo'])
+                            if res_analise["sucesso"]:
+                                st.markdown("### 🎯 Parecer da Inteligência Comercial:")
+                                st.markdown(res_analise["analise"])
+                            else:
+                                st.error(f"Erro ao analisar: {res_analise['erro']}")
+
+# -------------------------------------------------------------
+# ABA 7: AUDITORIA DE EDITAIS
 # -------------------------------------------------------------
 with tab_edital:
     st.subheader("Auditor de Termos de Referência (TR) e Editais")

@@ -42,6 +42,12 @@ SMTP_CONFIG = {
     "port_tls": int(os.getenv("SMTP_PORT_TLS", "587")),
 }
 
+# Configurações do servidor IMAP Titan (Leitura de Caixa de Entrada)
+IMAP_CONFIG = {
+    "host": os.getenv("IMAP_HOST", "imap.titan.email"),
+    "port": int(os.getenv("IMAP_PORT", "993")),
+}
+
 # Credenciais dos Funcionários Autônomos de IA
 CONTAS_FUNCIONARIOS = {
     "LUCAS": {
