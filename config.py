@@ -37,6 +37,32 @@ def eh_dominio_bloqueado(texto: str) -> bool:
 # Alias para compatibilidade
 eh_empresa_bloqueada = eh_dominio_bloqueado
 
+# Validador de ICP - Gestão Elétrica & Sistemas de Potência
+TERMOS_PERMITIDOS_ICP = [
+    "eletric", "elétric", "eletrotéc", "eletrotec", "potencia", "potência",
+    "subestacao", "subestação", "subestacoes", "subestações",
+    "manutencao", "manutenção", "comissionamento", "protecao", "proteção",
+    "seletividade", "confiabilidade", "utilidades", "automacao", "automação",
+    "instrumentacao", "instrumentação", "scada", "telecontrol"
+]
+
+TERMOS_PROIBIDOS_ICP = [
+    "logistica", "logística", "producao", "produção", "operador",
+    "recursos humanos", "rh", "financeiro", "compras", "suprimentos",
+    "juridico", "jurídico", "vendas", "comercial", "marketing", "ti ", "ti/",
+    "software", "recepcionista", "estagiario", "estagiário", "segurança patrimonial"
+]
+
+def validar_cargo_icp_eletrico(cargo: str) -> bool:
+    """Valida se o cargo pertence legitimamente à área de gerenciamento elétrico/potência."""
+    if not cargo:
+        return False
+    cargo_norm = cargo.lower()
+    for proibido in TERMOS_PROIBIDOS_ICP:
+        if proibido in cargo_norm:
+            return False
+    return any(termo in cargo_norm for termo in TERMOS_PERMITIDOS_ICP)
+
 # Metadados institucionais centralizados da KR Engenharia
 DADOS_EMPRESA = {
     "razao_social": "KR Consultoria e Soluções em Engenharia LTDA",

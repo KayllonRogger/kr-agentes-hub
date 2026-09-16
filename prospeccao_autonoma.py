@@ -5,7 +5,7 @@ import urllib.parse
 from typing import List, Dict, Optional
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from config import DADOS_EMPRESA, CONTAS_FUNCIONARIOS, eh_empresa_bloqueada
+from config import DADOS_EMPRESA, CONTAS_FUNCIONARIOS, eh_empresa_bloqueada, validar_cargo_icp_eletrico
 from utils import get_llm, extrair_texto
 from documentos_kr import compilar_documentos_institucionais
 from servico_lusha import consultar_contato_lusha, consultar_empresa_lusha, enriquecer_lead_com_lusha
@@ -28,12 +28,8 @@ CATALOGO_SETORES = {
                 "nome": "Vale S.A. - Complexo Carajás",
                 "dominio": "vale.com",
                 "tensao": "230/13.8 kV",
-                "cargo_alvo": "Gerente de Manutenção Elétrica",
-                "decisor_nome": "Eng. Rodrigo Santos",
-                "decisor_cargo": "Gerente de Manutenção Elétrica e Automação",
-                "decisor_email": "rodrigo.santos@vale.com",
-                "decisor_telefone": "+55 31 99521-5318",
-                "decisor_linkedin": "https://www.linkedin.com/in/lucas-fernandes-silva-585863235",
+                "cargo_alvo": "Gerente de Manutenção Elétrica e Automação",
+                "departamento_alvo": "Coordenação de Manutenção Elétrica & Automação",
                 "foco": "Alimentadores de moagem, seletividade de neutro e retrofits de relés"
             },
             {
@@ -41,11 +37,7 @@ CATALOGO_SETORES = {
                 "dominio": "samarco.com",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Gerente de Engenharia e Manutenção Elétrica",
-                "decisor_nome": "Eng. Eduardo de Oliveira",
-                "decisor_cargo": "Gerente de Engenharia e Manutenção Elétrica",
-                "decisor_email": "eduardo.oliveira@samarco.com",
-                "decisor_telefone": "+55 31 3269-8000",
-                "decisor_linkedin": "https://www.linkedin.com/company/samarco",
+                "departamento_alvo": "Gerência de Engenharia e Manutenção Elétrica",
                 "foco": "Reativação de subestações de alta tensão e parametrização de IEDs"
             },
             {
@@ -53,11 +45,7 @@ CATALOGO_SETORES = {
                 "dominio": "csn.com.br",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Coordenador de Manutenção Elétrica",
-                "decisor_nome": "Eng. Alexandre Costa",
-                "decisor_cargo": "Coordenador de Manutenção Elétrica",
-                "decisor_email": "alexandre.costa@csn.com.br",
-                "decisor_telefone": "+55 11 3049-7100",
-                "decisor_linkedin": "https://www.linkedin.com/company/csn",
+                "departamento_alvo": "Coordenação de Manutenção Elétrica",
                 "foco": "Coordenação e seletividade no ETAP e proteção de alimentadores"
             },
             {
@@ -65,10 +53,7 @@ CATALOGO_SETORES = {
                 "dominio": "kinross.com",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Gerente de Manutenção Elétrica",
-                "decisor_nome": "Eng. Ricardo Mendes",
-                "decisor_cargo": "Gerente de Manutenção Elétrica",
-                "decisor_email": "ricardo.mendes@kinross.com",
-                "decisor_telefone": "+55 38 3679-8000",
+                "departamento_alvo": "Gerência de Manutenção Elétrica",
                 "foco": "Confiabilidade de subestações e mitigação de transitórios de partida"
             },
             {
@@ -76,10 +61,7 @@ CATALOGO_SETORES = {
                 "dominio": "angloamerican.com",
                 "tensao": "230/13.8 kV",
                 "cargo_alvo": "Coordenador de Engenharia Elétrica & Subestações",
-                "decisor_nome": "Eng. Fernando Alvarenga",
-                "decisor_cargo": "Coordenador de Engenharia Elétrica & Subestações",
-                "decisor_email": "fernando.alvarenga@angloamerican.com",
-                "decisor_telefone": "+55 31 3589-1000",
+                "departamento_alvo": "Coordenação de Engenharia Elétrica & Subestações",
                 "foco": "Subestações de mineroduto e testes TAF/TAC em bancada"
             },
             {
@@ -87,10 +69,7 @@ CATALOGO_SETORES = {
                 "dominio": "nexaresources.com",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Gerente de Manutenção Elétrica e Automação",
-                "decisor_nome": "Eng. Gustavo Vasconcelos",
-                "decisor_cargo": "Gerente de Manutenção Elétrica e Automação",
-                "decisor_email": "gustavo.vasconcelos@nexaresources.com",
-                "decisor_telefone": "+55 11 3405-5000",
+                "departamento_alvo": "Gerência de Manutenção Elétrica e Automação",
                 "foco": "Ensaios secundários e automação IEC 61850"
             }
         ]
@@ -103,10 +82,7 @@ CATALOGO_SETORES = {
                 "dominio": "gerdau.com.br",
                 "tensao": "230/13.8 kV",
                 "cargo_alvo": "Gerente de Manutenção Elétrica",
-                "decisor_nome": "Eng. Marcio Silva",
-                "decisor_cargo": "Gerente de Manutenção Elétrica",
-                "decisor_email": "marcio.silva@gerdau.com.br",
-                "decisor_telefone": "+55 31 3749-1111",
+                "departamento_alvo": "Coordenação de Manutenção Elétrica & Fornos a Arco",
                 "foco": "Fornos elétricos a arco, lógicas GOOSE e relés SIPROTEC 5"
             },
             {
@@ -114,10 +90,7 @@ CATALOGO_SETORES = {
                 "dominio": "arcelormittal.com.br",
                 "tensao": "230/13.8 kV",
                 "cargo_alvo": "Gerente de Engenharia Elétrica e Automação",
-                "decisor_nome": "Eng. Henrique Barbosa",
-                "decisor_cargo": "Gerente de Engenharia Elétrica e Automação",
-                "decisor_email": "henrique.barbosa@arcelormittal.com.br",
-                "decisor_telefone": "+55 27 3348-1111",
+                "departamento_alvo": "Gerência de Engenharia Elétrica e Automação",
                 "foco": "Seletividade lógica, estudos de transitórios e cubículos de média tensão"
             },
             {
@@ -125,10 +98,7 @@ CATALOGO_SETORES = {
                 "dominio": "usiminas.com",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Coordenador de Manutenção Elétrica",
-                "decisor_nome": "Eng. Marcelo Pereira",
-                "decisor_cargo": "Coordenador de Manutenção Elétrica",
-                "decisor_email": "marcelo.pereira@usiminas.com",
-                "decisor_telefone": "+55 31 3829-2111",
+                "departamento_alvo": "Coordenação de Manutenção Elétrica",
                 "foco": "Retrofit de cubículos e parametrização avançada de relés SEL"
             },
             {
@@ -136,10 +106,7 @@ CATALOGO_SETORES = {
                 "dominio": "aperam.com",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Gerente de Manutenção Elétrica",
-                "decisor_nome": "Eng. Claudio Rezende",
-                "decisor_cargo": "Gerente de Manutenção Elétrica",
-                "decisor_email": "claudio.rezende@aperam.com",
-                "decisor_telefone": "+55 31 3849-7000",
+                "departamento_alvo": "Gerência de Manutenção Elétrica",
                 "foco": "Comissionamento TAC e ensaios com mala microprocessada calibrada RBC"
             },
             {
@@ -147,10 +114,7 @@ CATALOGO_SETORES = {
                 "dominio": "albras.net",
                 "tensao": "230/13.8 kV",
                 "cargo_alvo": "Gerente de Engenharia Elétrica & Subestações",
-                "decisor_nome": "Eng. Paulo Sergio Nobre",
-                "decisor_cargo": "Gerente de Engenharia Elétrica & Subestações",
-                "decisor_email": "paulo.nobre@albras.net",
-                "decisor_telefone": "+55 91 3754-1122",
+                "departamento_alvo": "Gerência de Engenharia Elétrica & Subestações",
                 "foco": "Sistemas retificadores de grande porte e proteção de subestações"
             }
         ]
@@ -163,10 +127,7 @@ CATALOGO_SETORES = {
                 "dominio": "eletrobras.com",
                 "tensao": "500/230 kV",
                 "cargo_alvo": "Gerente de Engenharia e Manutenção de Subestações",
-                "decisor_nome": "Eng. Carlos Tenaglia Jr.",
-                "decisor_cargo": "Gerente de Engenharia e Manutenção de Subestações",
-                "decisor_email": "carlos.tenaglia@eletrobras.com",
-                "decisor_telefone": "+55 21 2528-3111",
+                "departamento_alvo": "Gerência de Engenharia e Manutenção de Subestações",
                 "foco": "Automação SAS / IEC 61850 e ensaios em relés de alta tensão"
             },
             {
@@ -174,10 +135,7 @@ CATALOGO_SETORES = {
                 "dominio": "neoenergia.com",
                 "tensao": "230/34.5 kV",
                 "cargo_alvo": "Coordenador de Comissionamento Elétrico",
-                "decisor_nome": "Eng. Julio Cesar Cunha",
-                "decisor_cargo": "Coordenador de Comissionamento Elétrico",
-                "decisor_email": "julio.cunha@neoenergia.com",
-                "decisor_telefone": "+55 21 3235-9800",
+                "departamento_alvo": "Coordenação de Comissionamento Elétrico",
                 "foco": "Validação de bancada TAF/TAC e parametrização de proteção de interligação"
             },
             {
@@ -185,10 +143,7 @@ CATALOGO_SETORES = {
                 "dominio": "cpfl.com.br",
                 "tensao": "138/34.5 kV",
                 "cargo_alvo": "Gerente de Operação e Manutenção Elétrica",
-                "decisor_nome": "Eng. Marcos Antonio Faria",
-                "decisor_cargo": "Gerente de Operação e Manutenção Elétrica",
-                "decisor_email": "marcos.faria@cpfl.com.br",
-                "decisor_telefone": "+55 19 3756-8000",
+                "departamento_alvo": "Gerência de Operação e Manutenção Elétrica",
                 "foco": "Estudos de integração ao ONS e testes de seletividade"
             },
             {
@@ -196,10 +151,7 @@ CATALOGO_SETORES = {
                 "dominio": "engie.com",
                 "tensao": "230/138 kV",
                 "cargo_alvo": "Coordenador de Manutenção Elétrica & Proteção",
-                "decisor_nome": "Eng. Mauricio Ribeiro",
-                "decisor_cargo": "Coordenador de Manutenção Elétrica & Proteção",
-                "decisor_email": "mauricio.ribeiro@engie.com",
-                "decisor_telefone": "+55 48 3221-7000",
+                "departamento_alvo": "Coordenação de Manutenção Elétrica & Proteção",
                 "foco": "Ensaios secundários e relatórios técnicos com emissão de ART"
             },
             {
@@ -207,10 +159,7 @@ CATALOGO_SETORES = {
                 "dominio": "atlasrenewableenergy.com",
                 "tensao": "230/34.5 kV",
                 "cargo_alvo": "Gerente de Engenharia Elétrica",
-                "decisor_nome": "Eng. Gabriel Miranda",
-                "decisor_cargo": "Gerente de Engenharia Elétrica",
-                "decisor_email": "gabriel.miranda@atlasmin.com",
-                "decisor_telefone": "+55 11 3198-5000",
+                "departamento_alvo": "Gerência de Engenharia Elétrica",
                 "foco": "Subestações coletoras fotovoltaicas e parametrização multimarca"
             }
         ]
@@ -223,10 +172,7 @@ CATALOGO_SETORES = {
                 "dominio": "suzano.com.br",
                 "tensao": "230/13.8 kV",
                 "cargo_alvo": "Gerente de Manutenção Elétrica e Automação",
-                "decisor_nome": "Eng. Fabio Guimaraes",
-                "decisor_cargo": "Gerente de Manutenção Elétrica e Automação",
-                "decisor_email": "fabio.guimaraes@suzano.com.br",
-                "decisor_telefone": "+55 11 3503-9000",
+                "departamento_alvo": "Gerência de Manutenção Elétrica e Automação",
                 "foco": "Turbo-geradores industriais, lógica de ilhamento e estudos ETAP"
             },
             {
@@ -234,10 +180,7 @@ CATALOGO_SETORES = {
                 "dominio": "klabin.com.br",
                 "tensao": "230/13.8 kV",
                 "cargo_alvo": "Gerente de Engenharia Elétrica",
-                "decisor_nome": "Eng. Leandro Martins",
-                "decisor_cargo": "Gerente de Engenharia Elétrica",
-                "decisor_email": "leandro.martins@klabin.com.br",
-                "decisor_telefone": "+55 11 3737-4000",
+                "departamento_alvo": "Gerência de Engenharia Elétrica",
                 "foco": "Estabilidade de sistemas industriais e parametrização de IEDs"
             },
             {
@@ -245,10 +188,7 @@ CATALOGO_SETORES = {
                 "dominio": "cenibra.com.br",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Coordenador de Manutenção Elétrica",
-                "decisor_nome": "Eng. Valerio Silveira",
-                "decisor_cargo": "Coordenador de Manutenção Elétrica",
-                "decisor_email": "valerio.silveira@cenibra.com.br",
-                "decisor_telefone": "+55 31 3829-5000",
+                "departamento_alvo": "Coordenação de Manutenção Elétrica",
                 "foco": "Janelas críticas de parada geral de manutenção e testes de relés"
             }
         ]
@@ -261,10 +201,7 @@ CATALOGO_SETORES = {
                 "dominio": "andradegutierrez.com.br",
                 "tensao": "500/230 kV",
                 "cargo_alvo": "Gerente de Engenharia Elétrica e Comissionamento",
-                "decisor_nome": "Eng. Renato Brandao",
-                "decisor_cargo": "Gerente de Engenharia Elétrica e Comissionamento",
-                "decisor_email": "renato.brandao@andradegutierrez.com.br",
-                "decisor_telefone": "+55 31 3280-7000",
+                "departamento_alvo": "Gerência de Engenharia Elétrica e Comissionamento",
                 "foco": "Subcontratação especialista em TAF/TAC e subestações turn-key"
             },
             {
@@ -272,10 +209,7 @@ CATALOGO_SETORES = {
                 "dominio": "cbm.com.br",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Coordenador de Comissionamento Elétrico",
-                "decisor_nome": "Eng. Otavio Paiva",
-                "decisor_cargo": "Coordenador de Comissionamento Elétrico",
-                "decisor_email": "otavio.paiva@cbm.com.br",
-                "decisor_telefone": "+55 31 3298-2000",
+                "departamento_alvo": "Coordenação de Comissionamento Elétrico",
                 "foco": "Montagem eletromecânica e energização de plantas industriais"
             },
             {
@@ -283,10 +217,7 @@ CATALOGO_SETORES = {
                 "dominio": "mip.com.br",
                 "tensao": "138/13.8 kV",
                 "cargo_alvo": "Gerente de Engenharia Elétrica",
-                "decisor_nome": "Eng. Luciano Figueiredo",
-                "decisor_cargo": "Gerente de Engenharia Elétrica",
-                "decisor_email": "luciano.figueiredo@mip.com.br",
-                "decisor_telefone": "+55 31 3289-4000",
+                "departamento_alvo": "Gerência de Engenharia Elétrica",
                 "foco": "Montagem eletromecânica industrial e testes de aceitação em campo"
             },
             {
@@ -294,10 +225,7 @@ CATALOGO_SETORES = {
                 "dominio": "tenenge.com.br",
                 "tensao": "230/13.8 kV",
                 "cargo_alvo": "Gerente de Comissionamento Eletromecânico",
-                "decisor_nome": "Eng. Bernardo Vasconcelos",
-                "decisor_cargo": "Gerente de Comissionamento Eletromecânico",
-                "decisor_email": "bernardo.vasconcelos@tenenge.com.br",
-                "decisor_telefone": "+55 11 3443-9000",
+                "departamento_alvo": "Gerência de Comissionamento Eletromecânico",
                 "foco": "Projetos EPC de alta tensão e comissionamento especializado"
             }
         ]
@@ -375,12 +303,12 @@ Responsável Técnico: Eng. Kayllon Rogger Nunes (CREA-MG nº 141854962-2).
 Posicionamento da Empresa: Boutique Técnica de Alta Especialização em Sistemas de Potência, Seletividade (ETAP), Automação SAS / IEC 61850 e Comissionamento de Campo (TAF/TAC).
 
 SUA MISSÃO:
-Redigir uma abordagem B2B de alto valor para o e-mail de um decisor técnico exclusivo da área de GERENCIAMENTO ELÉTRICO (Gerente de Manutenção Elétrica, Gerente de Engenharia Elétrica ou Coordenador de Comissionamento Elétrico) da empresa-alvo indicada.
+Redigir uma abordagem B2B de alto valor para a área de GERENCIAMENTO ELÉTRICO e Sistemas de Potência da planta-alvo indicada.
 
 DIRETRIZES DO E-MAIL:
-1. Saudação Inicial Obrigatória e Nominal:
-   - Se o nome do decisor for fornecido (ex: 'Eng. Rodrigo Santos'), inicie a mensagem OBRIGATORIAMENTE saudando nominalmente: 'Prezado Eng. Rodrigo Santos,' ou 'Prezado [Nome do Decisor],'.
-   - Jamais utilize termos genéricos como 'Prezado Gerente' quando o nome real do decisor for informado.
+1. Saudação Inicial Obrigatória:
+   - Siga rigorosamente a DIRETRIZ DE SAUDAÇÃO indicada no contexto técnico.
+   - NUNCA invente nomes de pessoas. Se o destinatário for uma liderança/coordenação departamental, dirija-se com o devido respeito técnico (ex: 'Prezada Coordenação de Manutenção Elétrica & Engenharia de Potência,').
 2. Tom: De engenharia para engenharia. Extremamente respeitoso, sem bajulação, sem clichês de marketing genérico.
 3. Parágrafo 1 - Contexto Técnico da Planta: Demonstre conhecimento sobre a operação da empresa-alvo (tensões, equipamentos críticos e os riscos operacionais como descoordenação de neutro, saturação de TCs ou janelas críticas de parada).
 4. Parágrafo 2 - O Diferencial da KR Engenharia: Enfatize nossa metodologia de pré-validação em bancada (redução de até 40% de downtime) e cases de referência em grandes plantas (Baltic Power 400kV, Vale e Gerdau com Siemens SIPROTEC 5 e SEL).
@@ -394,11 +322,11 @@ REGRA CRÍTICA DE FECHAMENTO:
 ESTRUTURA DA RESPOSTA:
 ASSUNTO: [Linha de assunto direta e técnica]
 CORPO:
-[Texto completo do e-mail pronto para envio, iniciando por Prezado [Nome], e encerrando exatamente com Atenciosamente,]
+[Texto completo do e-mail pronto para envio, iniciando pela saudação e encerrando exatamente com Atenciosamente,]
 """
 
 def redigir_email_prospeccao(empresa_info: dict, especialidade_foco: str = "") -> Dict[str, str]:
-    """Gera o assunto e corpo do e-mail hiperpersonalizado para a planta-alvo e decisor específico."""
+    """Gera o assunto e corpo do e-mail hiperpersonalizado para a planta-alvo e liderança técnica."""
     nome_empresa = empresa_info.get("nome", "")
     dominio_emp = empresa_info.get("dominio", "")
     if eh_empresa_bloqueada(nome_empresa) or eh_empresa_bloqueada(dominio_emp):
@@ -407,13 +335,20 @@ def redigir_email_prospeccao(empresa_info: dict, especialidade_foco: str = "") -
     cargo_alvo = empresa_info.get("cargo_alvo", "Gerente de Manutenção Elétrica")
     decisor_nome = empresa_info.get("decisor_nome", "")
     decisor_cargo = empresa_info.get("decisor_cargo", cargo_alvo)
+    tipo_lead = empresa_info.get("tipo_lead", "DEPARTAMENTAL_VERIFICADO")
+
+    if tipo_lead == "NOMINAL_VERIFICADO" and decisor_nome and not any(termo in decisor_nome for termo in ["Coordenação", "Gerência", "Equipe"]):
+        diretriz_saudacao = f"Inicie a mensagem OBRIGATORIAMENTE com a saudação nominal: 'Prezado {decisor_nome},'."
+    else:
+        diretriz_saudacao = f"Inicie a mensagem dirigindo-se à liderança técnica da planta: 'Prezada Coordenação de Manutenção Elétrica & Engenharia de Potência — {nome_empresa},'."
 
     contexto = f"""
 EMPRESA-ALVO: {nome_empresa}
 DOMÍNIO CORPORATIVO: {dominio_emp}
 NÍVEL DE TENSÃO DA PLANTA: {empresa_info.get('tensao', 'Alta Tensão')}
-NOME DO DECISOR DE GERENCIAMENTO ELÉTRICO: {decisor_nome if decisor_nome else 'Não especificado (usar cargo)'}
-CARGO EXATO DO DECISOR: {decisor_cargo}
+DESTINATÁRIO TÉCNICO: {decisor_nome if decisor_nome else 'Coordenação de Manutenção Elétrica'}
+CARGO / DEPARTAMENTO: {decisor_cargo}
+DIRETRIZ DE SAUDAÇÃO: {diretriz_saudacao}
 FOCO OPERACIONAL TÍPICO: {empresa_info.get('foco', 'Confiabilidade Elétrica')}
 ESPECIALIDADE ESPECÍFICA: {especialidade_foco if especialidade_foco else 'Estudos de Seletividade no ETAP e Comissionamento TAF/TAC'}
 """
@@ -449,20 +384,22 @@ ESPECIALIDADE ESPECÍFICA: {especialidade_foco if especialidade_foco else 'Estud
 # MOTOR DE RESOLUÇÃO E ENRIQUECIMENTO AUTÔNOMO (APOLLO + LUSHA)
 # =====================================================================
 
-def resolver_decisor_autonomo(empresa_info: dict) -> dict:
+def resolver_decisor_autonomo(
+    empresa_info: dict,
+    linkedin_url: Optional[str] = None,
+    nome_candidato: Optional[str] = None
+) -> dict:
     """
-    Resolve e enriquece os dados do decisor e da organização de forma 100% autônoma,
-    sem exigir gatilhos manuais do usuário:
+    Resolve e enriquece os dados do decisor e da organização de forma 100% autônoma e segura:
     1. Apollo.io Organization Enrichment: telefone corporativo da sede, localização (cidade/estado), porte e setor.
-    2. Lusha Person API: e-mail de trabalho direto verificado, telefone móvel/direto e cargo real.
-    3. Fallback inteligente: catálogo de decisores pré-mapeados da KR Engenharia na área de gestão elétrica.
+    2. Lusha Person API: Se fornecida URL ou nome, valida estritamente o cargo via ICP elétrico.
+       Se for cargo alheio (ex: logística, produção, operador), o perfil é rejeitado para não poluir os leads.
+    3. Quando não houver decisor nominal verificado no ICP:
+       Mapeia a Coordenação / Gerência de Manutenção Elétrica da planta com a central corporativa via Apollo.
     """
     dominio_emp = empresa_info.get("dominio", "")
-    decisor_base_nome = empresa_info.get("decisor_nome", "")
-    decisor_base_cargo = empresa_info.get("decisor_cargo") or empresa_info.get("cargo_alvo", "Gerente de Manutenção Elétrica")
-    decisor_base_email = empresa_info.get("decisor_email", "")
-    decisor_base_tel = empresa_info.get("decisor_telefone", "")
-    decisor_base_linkedin = empresa_info.get("decisor_linkedin", "")
+    cargo_alvo = empresa_info.get("cargo_alvo", "Gerente de Manutenção Elétrica")
+    dep_alvo = empresa_info.get("departamento_alvo", "Coordenação de Manutenção Elétrica & Subestações")
 
     # 1. Apollo Organization Enrichment
     dados_apollo = None
@@ -479,47 +416,51 @@ def resolver_decisor_autonomo(empresa_info: dict) -> dict:
     except Exception as e:
         print(f"   ⚠️ [Apollo] Erro ao consultar {dominio_emp}: {e}")
 
-    # 2. Lusha Person API Enrichment
+    # 2. Lusha Person API Enrichment (somente se parâmetros fornecidos e válidos)
     dados_lusha = None
-    try:
-        partes_nome = decisor_base_nome.replace("Eng.", "").strip().split()
-        primeiro_nome = partes_nome[0] if partes_nome else None
-        ultimo_nome = " ".join(partes_nome[1:]) if len(partes_nome) > 1 else None
+    if linkedin_url or nome_candidato:
+        try:
+            partes_nome = (nome_candidato or "").replace("Eng.", "").strip().split()
+            primeiro_nome = partes_nome[0] if partes_nome else None
+            ultimo_nome = " ".join(partes_nome[1:]) if len(partes_nome) > 1 else None
 
-        res_lusha = consultar_contato_lusha(
-            linkedin_url=decisor_base_linkedin if (decisor_base_linkedin and "linkedin.com/in/" in decisor_base_linkedin) else None,
-            primeiro_nome=primeiro_nome,
-            ultimo_nome=ultimo_nome,
-            dominio_empresa=dominio_emp
-        )
-        if res_lusha.get("encontrado") and res_lusha.get("dados"):
-            dados_lusha = res_lusha["dados"]
-    except Exception as e:
-        print(f"   ⚠️ [Lusha] Erro ao consultar {decisor_base_nome}: {e}")
+            res_lusha = consultar_contato_lusha(
+                linkedin_url=linkedin_url if (linkedin_url and "linkedin.com/in/" in linkedin_url) else None,
+                primeiro_nome=primeiro_nome,
+                ultimo_nome=ultimo_nome,
+                dominio_empresa=dominio_emp
+            )
+            if res_lusha.get("encontrado") and res_lusha.get("dados"):
+                candidato = res_lusha["dados"]
+                cargo_candidato = candidato.get("cargo", "")
+                if validar_cargo_icp_eletrico(cargo_candidato):
+                    dados_lusha = candidato
+                else:
+                    print(f"   ⚠️ [ICP Rejeitado] Cargo '{cargo_candidato}' não pertence à gestão elétrica. Descartado.")
+        except Exception as e:
+            print(f"   ⚠️ [Lusha] Erro ao consultar contato: {e}")
 
     # 3. Consolidação inteligente dos campos
-    nome_final = (dados_lusha.get("nome_completo") if dados_lusha else None) or decisor_base_nome
-    if nome_final and not nome_final.startswith("Eng.") and "Eng" in decisor_base_nome:
-        nome_final = f"Eng. {nome_final}"
+    if dados_lusha:
+        nome_final = dados_lusha.get("nome_completo", "")
+        if nome_final and not nome_final.startswith("Eng."):
+            nome_final = f"Eng. {nome_final}"
+        cargo_final = dados_lusha.get("cargo", cargo_alvo)
+        email_final = dados_lusha.get("email_principal", "")
+        telefones_finais = list(dados_lusha.get("telefones_formatados", []))
+        if tel_apollo and not any(tel_apollo in t for t in telefones_finais):
+            telefones_finais.append(f"🏢 Sede/Central (Apollo): {tel_apollo}")
+        linkedin_final = dados_lusha.get("linkedin_url", linkedin_url or "")
+        tipo_lead = "NOMINAL_VERIFICADO"
+    else:
+        # Canal Departamental Corporativo Oficial
+        nome_final = dep_alvo
+        cargo_final = cargo_alvo
+        email_final = ""
+        telefones_finais = [f"🏢 Central Corporativa (Apollo): {tel_apollo}"] if tel_apollo else []
+        linkedin_final = ""
+        tipo_lead = "DEPARTAMENTAL_VERIFICADO"
 
-    cargo_final = (dados_lusha.get("cargo") if dados_lusha else None) or decisor_base_cargo
-    email_final = (dados_lusha.get("email_principal") if dados_lusha else None) or decisor_base_email
-
-    telefones_finais = []
-    if dados_lusha and dados_lusha.get("telefones_formatados"):
-        telefones_finais.extend(dados_lusha["telefones_formatados"])
-
-    if decisor_base_tel:
-        fmt_direto = f"📱 Direto: {decisor_base_tel}"
-        if not any(decisor_base_tel in t for t in telefones_finais):
-            telefones_finais.append(fmt_direto)
-
-    if tel_apollo:
-        fmt_apollo = f"🏢 Sede/Central (Apollo): {tel_apollo}"
-        if not any(tel_apollo in t for t in telefones_finais):
-            telefones_finais.append(fmt_apollo)
-
-    linkedin_final = (dados_lusha.get("linkedin_url") if dados_lusha else None) or decisor_base_linkedin
     cidade_final = cidade_apollo or (dados_lusha.get("cidade") if dados_lusha else "")
     estado_final = estado_apollo or (dados_lusha.get("estado") if dados_lusha else "")
 
@@ -531,8 +472,9 @@ def resolver_decisor_autonomo(empresa_info: dict) -> dict:
         "linkedin_contato": linkedin_final,
         "cidade": cidade_final,
         "estado": estado_final,
+        "tipo_lead": tipo_lead,
         "lusha_enriquecido": bool(dados_lusha),
-        "lusha_status": "ENRIQUECIDO" if dados_lusha else ("BASE_MAPEADA" if email_final else "PENDENTE"),
+        "lusha_status": "ENRIQUECIDO" if dados_lusha else "CANAL_CORPORATIVO",
         "apollo_enriquecido": bool(dados_apollo),
         "dados_apollo": dados_apollo,
         "dados_lusha": dados_lusha

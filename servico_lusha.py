@@ -1,7 +1,7 @@
 import os
 import requests
 from typing import Dict, Optional, List, Any
-from config import LUSHA_API_KEY
+from config import LUSHA_API_KEY, validar_cargo_icp_eletrico
 
 LUSHA_API_BASE = "https://api.lusha.com/v2"
 LUSHA_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -348,6 +348,18 @@ def enriquecer_lead_com_lusha(
 
     if resultado.get("encontrado") and resultado.get("dados"):
         dados = resultado["dados"]
+        cargo_retornado = dados.get("cargo", "")
+
+        # Filtro estrito de ICP elétrico (descarta logística, produção, operador, etc.)
+        if cargo_retornado and not validar_cargo_icp_eletrico(cargo_retornado):
+            return {
+                "sucesso": False,
+                "encontrado": False,
+                "mensagem": f"⚠️ Perfil de '{dados.get('nome_completo')}' descartado: Cargo '{cargo_retornado}' é incompatível com o ICP de Gerenciamento Elétrico / Sistemas de Potência.",
+                "lead": lead,
+                "dados_lusha": None
+            }
+
         email_encontrado = dados.get("email_principal")
         telefones = dados.get("telefones_formatados", [])
 
