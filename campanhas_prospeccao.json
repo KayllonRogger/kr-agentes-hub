@@ -14,8 +14,8 @@
     "assunto": "Engenharia de Proteção e Comissionamento TAF/TAC | Subestações 230/13.8 kV",
     "corpo_email": "Prezado Gerente de Manutenção Elétrica,\n\nA operação contínua do Complexo Carajás exige confiabilidade máxima na infraestrutura de 230/13.8 kV, onde desarmes indevidos nos alimentadores das linhas de moagem podem acarretar impactos operacionais severos. Em barramentos de média tensão sujeitos a severas cargas dinâmicas, descoordenações de neutro, saturação de TCs sob transitórios e falhas no casamento de curvas de proteção representam riscos críticos durante janelas reduzidas de manutenção.\n\nA KR Engenharia atua como uma boutique técnica de alta especialização focada em mitigar exatamente essas vulnerabilidades. Desenvolvemos Estudos de Proteção e Seletividade no ETAP e atuamos no Comissionamento de Campo (TAF/TAC) para retrofits de relés de alta complexidade (Siemens SIPROTEC 5 e SEL). O nosso diferencial reside na metodologia de pré-validação integral em bancada por meio de testes secundários automatizados antes da ida a campo, o que reduz em até 40% o *downtime* necessário para testes de malha e energização. Acumulamos em nosso corpo técnico a responsabilidade por comissionamentos críticos em grandes plantas mineradoras e siderúrgicas, como Vale e Gerdau, além de projetos internacionais de alta tensão como o Baltic Power (400 kV).\n\nAnexo a este e-mail nossa Carta de Apresentação Institucional e o Portfólio de Serviços. Gostaria de sugerir uma breve discussão técnica de 15 minutos na próxima semana para apresentar como nossa engenharia de aplicação pode apoiar os próximos retrofits e revisões de seletividade da sua planta.\n\nAtenciosamente,",
     "anexos": [
-      "documentos/Carta_Apresentacao_KR_Engenharia.html",
-      "documentos/Portfolio_Tecnico_KR_Engenharia.txt"
+      "documentos/Carta_Apresentacao_KR_Engenharia.pdf",
+      "documentos/Portfolio_Corporativo_KR_Engenharia.pdf"
     ],
     "status": "PRONTO_PARA_DISPARO",
     "data_criacao": "15/09/2026 21:39",
@@ -37,8 +37,8 @@
     "assunto": "Confiabilidade de Proteção 138/13.8 kV e Comissionamento TAF/TAC nos Complexos Ubu e Germano",
     "corpo_email": "Prezado Gerente de Engenharia e Manutenção Elétrica,\n\nA reativação e sustentação operacional dos sistemas de potência em 138/13.8 kV nos Complexos de Ubu e Germano exigem rigor técnico extremo na coordenação e parametrização dos IEDs de proteção. Em arquiteturas com alta exigência de disponibilidade como as da Samarco, desajustes finos na curva de descoordenação de neutro, saturação de TCs sob correntes de curto-circuito elevadas ou falhas na lógica de intertravamento entre a alta e a média tensão podem expor as plantas a trips indesejados durante o ramp-up das cargas críticas do beneficiamento e pelotização.\n\nA KR Engenharia atua como uma boutique técnica de alta especialização exatamente para eliminar essas lacunas operacionais. Executamos estudos de proteção e seletividade avançados na plataforma ETAP e realizamos o comissionamento de campo (TAF/TAC) de relés de proteção (com larga experiência em plataformas Siemens SIPROTEC 5 e SEL). O nosso principal diferencial é a aplicação de uma metodologia de pré-validação e simulação funcional em bancada prévia ao comissionamento, o que reduz em até 40% o downtime e o tempo de janela crítica de parada na energização das subestações. Acumulamos know-how validado em plantas de alta complexidade, com cases executados para clientes como Vale, Gerdau e no projeto internacional Baltic Power (400 kV).\n\nAnexo a este e-mail, encaminho a nossa Carta de Apresentação Institucional e o Portfólio de Serviços detalhado para sua avaliação técnica. Gostaria de propor uma breve conversa de 15 minutos na próxima semana para discutirmos os desafios atuais de proteção, parametrização e comissionamento das subestações dos complexos da Samarco.\n\nAtenciosamente,",
     "anexos": [
-      "documentos/Carta_Apresentacao_KR_Engenharia.html",
-      "documentos/Portfolio_Tecnico_KR_Engenharia.txt"
+      "documentos/Carta_Apresentacao_KR_Engenharia.pdf",
+      "documentos/Portfolio_Corporativo_KR_Engenharia.pdf"
     ],
     "status": "PRONTO_PARA_DISPARO",
     "data_criacao": "15/09/2026 21:39",

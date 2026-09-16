@@ -397,36 +397,36 @@ with tab_prospeccao:
                         st.error(f"Erro durante a varredura autônoma: {err}")
 
         # Seção de Documentos Institucionais Anexados
-        with st.expander("📎 Documentos Oficiais Anexados aos E-mails (Portfólio & Carta de Apresentação)"):
-            st.caption("Estes documentos são automaticamente gerados e incluídos nos disparos de prospecção do Lucas Campos.")
+        with st.expander("📎 Documentos Oficiais Anexados aos E-mails (Portfólio Corporativo & Carta em PDF)"):
+            st.caption("Estes documentos são automaticamente compilados em PDF e incluídos nos disparos de prospecção do Lucas Campos.")
             col_doc1, col_doc2 = st.columns(2)
             with col_doc1:
-                st.markdown("**1. Carta de Apresentação Institucional (HTML A4)**")
-                st.caption("Layout corporativo executivo com selo KR, descrição de disciplinas, cases e ART.")
+                st.markdown("**1. Carta de Apresentação Institucional (PDF com Marca d'Água)**")
+                st.caption("Apresentação formal das disciplinas e metodologia com a logomarca KR como marca d'água de fundo.")
                 try:
-                    with open(docs_institucionais["carta_html"], "r", encoding="utf-8") as f:
-                        conteudo_carta = f.read()
+                    with open(docs_institucionais["carta_pdf"], "rb") as f:
+                        conteudo_carta_pdf = f.read()
                     st.download_button(
-                        label="📥 Baixar Carta de Apresentação (HTML)",
-                        data=conteudo_carta,
-                        file_name="Carta_Apresentacao_KR_Engenharia.html",
-                        mime="text/html",
-                        key="btn_down_carta"
+                        label="📥 Baixar Carta de Apresentação (PDF)",
+                        data=conteudo_carta_pdf,
+                        file_name="Carta_Apresentacao_KR_Engenharia.pdf",
+                        mime="application/pdf",
+                        key="btn_down_carta_pdf"
                     )
                 except Exception:
                     st.info("Documento sendo compilado...")
             with col_doc2:
-                st.markdown("**2. Portfólio Técnico Resumido (TXT)**")
-                st.caption("Resumo executivo de competências (ETAP, IEC 61850, TAF/TAC) e cases de referência.")
+                st.markdown("**2. Portfólio Corporativo Oficial (PDF 3 Páginas)**")
+                st.caption("Documento completo de engenharia: disciplinas, instrumental RBC, cases reais e redução de downtime.")
                 try:
-                    with open(docs_institucionais["portfolio_txt"], "r", encoding="utf-8") as f:
-                        conteudo_port = f.read()
+                    with open(docs_institucionais["portfolio_pdf"], "rb") as f:
+                        conteudo_port_pdf = f.read()
                     st.download_button(
-                        label="📥 Baixar Portfólio Resumido (TXT)",
-                        data=conteudo_port,
-                        file_name="Portfolio_Tecnico_KR_Engenharia.txt",
-                        mime="text/plain",
-                        key="btn_down_port"
+                        label="📥 Baixar Portfólio Corporativo (PDF)",
+                        data=conteudo_port_pdf,
+                        file_name="Portfolio_Corporativo_KR_Engenharia.pdf",
+                        mime="application/pdf",
+                        key="btn_down_port_pdf"
                     )
                 except Exception:
                     st.info("Documento sendo compilado...")
