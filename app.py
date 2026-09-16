@@ -5,7 +5,8 @@ import urllib.parse
 import streamlit as st
 
 # Módulos centrais refatorados
-from config import APP_USUARIO, APP_SENHA, DADOS_EMPRESA, CONTAS_FUNCIONARIOS
+from config import APP_USUARIO, APP_SENHA, DADOS_EMPRESA, CONTAS_FUNCIONARIOS, eh_empresa_bloqueada
+from servico_apollo import gerar_link_busca_apollo, consultar_empresa_apollo
 from utils import (
     carregar_acervo_tecnico,
     gerar_link_busca_linkedin,
@@ -464,7 +465,7 @@ with tab_prospeccao:
                     st.markdown("#### 🔍 Engrenagens de Busca de Contatos Reais (Lusha & LinkedIn)")
                     st.info("💡 **Localização Precisa:** Clique em **Lusha** ou **LinkedIn** para localizar o perfil do gestor elétrico. Cole a URL do perfil ou o nome abaixo para que a **API da Lusha** recupere o e-mail corporativo verificado e telefones diretos automaticamente, sem adivinhações.")
 
-                    col_g1, col_g2, col_g3, col_g4 = st.columns(4)
+                    col_g1, col_g2, col_g3, col_g4, col_g5 = st.columns(5)
                     with col_g1:
                         st.link_button(
                             label="⚡ 1. Buscar no Lusha",
@@ -473,19 +474,25 @@ with tab_prospeccao:
                         )
                     with col_g2:
                         st.link_button(
-                            label=f"🔗 2. LinkedIn Direct",
-                            url=lead.get("link_linkedin", "#"),
-                            help="Busca direta de pessoas logadas no LinkedIn com cargo de gerenciamento elétrico."
+                            label="🚀 2. Apollo.io",
+                            url=lead.get("link_apollo", f"https://www.google.com/search?q=site%3Aapollo.io%2Fpeople+{urllib.parse.quote(lead.get('empresa', ''))}"),
+                            help="Busca de contatos e inteligência B2B no diretório Apollo.io."
                         )
                     with col_g3:
                         st.link_button(
-                            label="🔎 3. Google X-Ray",
-                            url=lead.get("link_xray", "#"),
-                            help="Operador booleano avançado para perfis indexados sem limite de busca."
+                            label=f"🔗 3. LinkedIn Direct",
+                            url=lead.get("link_linkedin", "#"),
+                            help="Busca direta de pessoas logadas no LinkedIn com cargo de gerenciamento elétrico."
                         )
                     with col_g4:
                         st.link_button(
-                            label="🎯 4. RocketReach",
+                            label="🔎 4. Google X-Ray",
+                            url=lead.get("link_xray", "#"),
+                            help="Operador booleano avançado para perfis indexados sem limite de busca."
+                        )
+                    with col_g5:
+                        st.link_button(
+                            label="🎯 5. RocketReach",
                             url=lead.get("link_rocketreach", f"https://www.google.com/search?q=site%3Arocketreach.co+{urllib.parse.quote(lead.get('empresa', ''))}"),
                             help="Consulta complementar para validação de contatos corporativos verificados."
                         )
@@ -572,6 +579,8 @@ with tab_prospeccao:
                             if st.button("🚀 Disparar E-mail com Anexos (Titan SMTP)", key=f"btn_send_{lid}", type="primary"):
                                 if not email_dest_input or "@" not in email_dest_input:
                                     st.warning("⚠️ Cole o e-mail verificado do gestor elétrico (obtido via Lusha ou LinkedIn) para prosseguir com o disparo.")
+                                elif eh_empresa_bloqueada(email_dest_input) or eh_empresa_bloqueada(lead.get("empresa", "")):
+                                    st.error("🚫 **[BLOQUEIO INSTITUCIONAL ATIVADO]** Envio cancelado. A empresa **SM&A** está na lista de restrição institucional da KR Engenharia e não deve ser prospectada.")
                                 else:
                                     with st.spinner(f"Lucas Campos conectando à conta Titan e enviando para {email_dest_input}..."):
                                         res_envio = enviar_email_funcionario(
@@ -642,33 +651,43 @@ with tab_prospeccao:
         btn_gerar_cadencia = st.button("Gerar Abordagem e Links de Busca", type="primary")
         
         if btn_gerar_cadencia and empresa_alvo:
-            with st.spinner("Lucas Campos mapeando decisores e estruturando abordagem..."):
-                try:
-                    cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
-                    link_linkedin = gerar_link_busca_linkedin(empresa_alvo, cargo_busca)
-                    query_lusha_pontual = urllib.parse.quote(f'site:lusha.com "{empresa_alvo}" ("{cargo_busca}" OR "Manutenção Elétrica")')
-                    link_lusha_pontual = f"https://www.google.com/search?q={query_lusha_pontual}"
-                    salvar_markdown_saida("cadencia_prospeccao.md", cadencia)
-                    
-                    st.session_state.cadencia_atual = cadencia
-                    st.session_state.empresa_atual = empresa_alvo
+            if eh_empresa_bloqueada(empresa_alvo):
+                st.error("🚫 **[BLOQUEIO INSTITUCIONAL ATIVADO]**\n\nA empresa **SM&A** está expressamente cadastrada na **Lista de Restrição Institucional** da KR Engenharia e **NÃO deve ser contactada para prospecção de clientes**.")
+            else:
+                with st.spinner("Lucas Campos mapeando decisores e estruturando abordagem..."):
+                    try:
+                        cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
+                        link_linkedin = gerar_link_busca_linkedin(empresa_alvo, cargo_busca)
+                        query_lusha_pontual = urllib.parse.quote(f'site:lusha.com "{empresa_alvo}" ("{cargo_busca}" OR "Manutenção Elétrica")')
+                        link_lusha_pontual = f"https://www.google.com/search?q={query_lusha_pontual}"
+                        link_apollo_pontual = gerar_link_busca_apollo(empresa_alvo, cargo_busca)
+                        salvar_markdown_saida("cadencia_prospeccao.md", cadencia)
                         
-                    st.success("Estratégia de Abordagem Concluída!")
-                    col_p1, col_p2 = st.columns(2)
-                    with col_p1:
-                        st.link_button(
-                            label=f"⚡ Buscar no Lusha ({empresa_alvo})",
-                            url=link_lusha_pontual,
-                            help="Localize e-mails diretos e telefones de gestores da planta via Lusha."
-                        )
-                    with col_p2:
-                        st.link_button(
-                            label=f"🔗 Abrir Busca no LinkedIn Direct ({cargo_busca})",
-                            url=link_linkedin
-                        )
-                    st.markdown(cadencia)
-                except Exception as e:
-                    st.error(f"Erro ao gerar prospecção: {e}")
+                        st.session_state.cadencia_atual = cadencia
+                        st.session_state.empresa_atual = empresa_alvo
+                            
+                        st.success("Estratégia de Abordagem Concluída!")
+                        col_p1, col_p2, col_p3 = st.columns(3)
+                        with col_p1:
+                            st.link_button(
+                                label=f"⚡ Buscar no Lusha",
+                                url=link_lusha_pontual,
+                                help="Localize e-mails diretos e telefones de gestores da planta via Lusha."
+                            )
+                        with col_p2:
+                            st.link_button(
+                                label=f"🚀 Buscar no Apollo.io",
+                                url=link_apollo_pontual,
+                                help="Busca de contatos e decisores no Apollo.io."
+                            )
+                        with col_p3:
+                            st.link_button(
+                                label=f"🔗 LinkedIn Direct ({cargo_busca})",
+                                url=link_linkedin
+                            )
+                        st.markdown(cadencia)
+                    except Exception as e:
+                        st.error(f"Erro ao gerar prospecção: {e}")
 
         if "cadencia_atual" in st.session_state:
             st.divider()
@@ -749,6 +768,8 @@ with tab_prospeccao:
             if btn_enviar_email:
                 if not destinatario_email or "@" not in destinatario_email:
                     st.warning("Por favor, informe um endereço de e-mail válido para o destinatário.")
+                elif eh_empresa_bloqueada(destinatario_email) or eh_empresa_bloqueada(st.session_state.get('empresa_atual', '')):
+                    st.error("🚫 **[BLOQUEIO INSTITUCIONAL ATIVADO]** Envio cancelado. A empresa **SM&A** está na lista de restrição da KR Engenharia e não deve ser prospectada.")
                 else:
                     anexos_envio = docs_institucionais["anexos_padrao"] if anexar_documentos else None
                     with st.spinner(f"Lucas Campos conectando à conta e disparando e-mail para {destinatario_email}..."):

@@ -5,10 +5,11 @@ import urllib.parse
 from typing import List, Dict, Optional
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from config import DADOS_EMPRESA, CONTAS_FUNCIONARIOS
+from config import DADOS_EMPRESA, CONTAS_FUNCIONARIOS, eh_empresa_bloqueada
 from utils import get_llm, extrair_texto
 from documentos_kr import compilar_documentos_institucionais
 from servico_lusha import consultar_contato_lusha, consultar_empresa_lusha, enriquecer_lead_com_lusha
+from servico_apollo import gerar_link_busca_apollo, consultar_empresa_apollo
 
 ARQUIVO_CAMPANHAS = "campanhas_prospeccao.json"
 
@@ -238,9 +239,13 @@ def gerar_links_prospeccao(empresa: str, cargo: str = "Gerente de Manutenção E
     query_rr = urllib.parse.quote(f'site:rocketreach.co "{nome_limpo}" ("{cargo}" OR "Manutenção Elétrica" OR "Engenharia Elétrica")')
     link_rr = f"https://www.google.com/search?q={query_rr}"
 
+    # 5. Apollo.io Search (B2B Lead Search)
+    link_apollo = gerar_link_busca_apollo(nome_limpo, cargo)
+
     return {
         "lusha": link_lusha,
         "lusha_portal": "https://www.lusha.com/",
+        "apollo": link_apollo,
         "linkedin_direto": link_linkedin,
         "google_xray": link_xray,
         "rocketreach": link_rr
@@ -296,6 +301,11 @@ CORPO:
 
 def redigir_email_prospeccao(empresa_info: dict, especialidade_foco: str = "") -> Dict[str, str]:
     """Gera o assunto e corpo do e-mail hiperpersonalizado para a planta-alvo."""
+    nome_empresa = empresa_info.get("nome", "")
+    dominio_emp = empresa_info.get("dominio", "")
+    if eh_empresa_bloqueada(nome_empresa) or eh_empresa_bloqueada(dominio_emp):
+        raise ValueError("A empresa SM&A faz parte da lista de restrição institucional da KR Engenharia e não deve ser contactada para prospecção.")
+
     cargo_alvo = empresa_info.get("cargo_alvo", "Gerente de Manutenção Elétrica")
     contexto = f"""
 EMPRESA-ALVO: {empresa_info['nome']}
@@ -375,6 +385,13 @@ def executar_varredura_setor(
 
     for emp in empresas_alvo:
         nome_emp = emp["nome"]
+        dominio_emp = emp.get("dominio", "")
+
+        # Verificação rigorosa de bloqueio institucional (ex: SM&A)
+        if eh_empresa_bloqueada(nome_emp) or eh_empresa_bloqueada(dominio_emp):
+            print(f"   🚫 [BLOQUEIO INSTITUCIONAL] {nome_emp} ignorada da prospecção (Restrição SM&A).")
+            continue
+
         cargo_alvo = emp.get("cargo_alvo", "Gerente de Manutenção Elétrica")
         print(f"   🔍 Mapeando oportunidades em: {nome_emp} (Decisor: {cargo_alvo})...")
 
@@ -385,10 +402,11 @@ def executar_varredura_setor(
             "id": f"LEAD-{int(time.time())}-{len(fila_atual) + len(novos_leads) + 1}",
             "setor": setor_dados["nome"],
             "empresa": nome_emp,
-            "dominio": emp.get("dominio", ""),
+            "dominio": dominio_emp,
             "tensao": emp.get("tensao", ""),
             "cargo_alvo": cargo_alvo,
             "link_lusha": links["lusha"],
+            "link_apollo": links["apollo"],
             "link_linkedin": links["linkedin_direto"],
             "link_xray": links["google_xray"],
             "link_rocketreach": links["rocketreach"],

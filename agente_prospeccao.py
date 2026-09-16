@@ -1,6 +1,6 @@
 import os
 from langchain_core.messages import SystemMessage, HumanMessage
-from config import DADOS_EMPRESA
+from config import DADOS_EMPRESA, eh_empresa_bloqueada
 from utils import get_llm, extrair_texto, gerar_link_busca_linkedin, salvar_markdown_saida
 
 PROMPT_PROSPECCAO_1CLIQUE = f"""Você é o Especialista em Inteligência Comercial e Prospecção B2B da {DADOS_EMPRESA['nome_fantasia']}.
@@ -25,6 +25,13 @@ ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
 
 def gerar_cadencia_prospeccao(perfil_empresa: str, especialidade: str = "") -> str:
     """Gera plano de abordagem de prospecção B2B personalizado."""
+    if eh_empresa_bloqueada(perfil_empresa):
+        return (
+            "🚫 **[BLOQUEIO INSTITUCIONAL ATIVADO]**\n\n"
+            "A empresa **SM&A** está expressamente cadastrada na **Lista de Restrição Institucional** da KR Engenharia.\n\n"
+            "⚠️ **Diretriz Técnica:** Nunca contactar a SM&A como prospecção de clientes. O fluxo foi interrompido por conformidade ética e estratégica."
+        )
+
     print(f"\n🎯 [Agente de Prospecção] Mapeando abordagem para {perfil_empresa}...")
     
     contexto = f"EMPRESA-ALVO: {perfil_empresa}\n"

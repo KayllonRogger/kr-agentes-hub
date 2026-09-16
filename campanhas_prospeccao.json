@@ -37,7 +37,8 @@
       ],
       "cidade": "Parauapebas",
       "estado": "Pará"
-    }
+    },
+    "link_apollo": "https://www.google.com/search?q=site%3Aapollo.io/people%20%22Vale%20S.A.%22%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29"
   },
   {
     "id": "LEAD-1789529991-2",
@@ -60,6 +61,7 @@
     "status": "PRONTO_PARA_DISPARO",
     "data_criacao": "15/09/2026 21:39",
     "data_envio": null,
-    "resultado_envio": ""
+    "resultado_envio": "",
+    "link_apollo": "https://www.google.com/search?q=site%3Aapollo.io/people%20%22Samarco%20Minera%C3%A7%C3%A3o%22%20%28%22Gerente%20de%20Engenharia%20e%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29"
   }
 ]

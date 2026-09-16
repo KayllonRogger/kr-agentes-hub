@@ -9,7 +9,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from typing import Optional, List, Dict
 
-from config import SMTP_CONFIG, IMAP_CONFIG, CONTAS_FUNCIONARIOS, DADOS_EMPRESA
+from config import SMTP_CONFIG, IMAP_CONFIG, CONTAS_FUNCIONARIOS, DADOS_EMPRESA, eh_empresa_bloqueada
 
 def gerar_assinatura_html(funcionario_info: dict) -> str:
     """Gera a assinatura corporativa oficial em HTML com a logomarca da KR Engenharia."""
@@ -181,6 +181,13 @@ def enviar_email_funcionario(
     Envia um e-mail a partir da caixa postal corporativa oficial de um funcionário de IA,
     incluindo a assinatura oficial com logomarca e dados da KR Engenharia.
     """
+    # Regra Institucional Inviolável: Bloqueio estrito de prospecção da SM&A
+    if eh_empresa_bloqueada(destinatario):
+        return {
+            "sucesso": False,
+            "erro": "Envio cancelado: O destinatário pertence à SM&A, que está na lista de restrição institucional de prospecção da KR Engenharia."
+        }
+
     conta = CONTAS_FUNCIONARIOS.get(funcionario_id)
     if not conta:
         return {"sucesso": False, "erro": f"Funcionário '{funcionario_id}' não cadastrado."}
