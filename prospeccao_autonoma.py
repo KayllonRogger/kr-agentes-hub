@@ -304,7 +304,7 @@ def redigir_email_prospeccao(empresa_info: dict, especialidade_foco: str = "") -
     nome_empresa = empresa_info.get("nome", "")
     dominio_emp = empresa_info.get("dominio", "")
     if eh_empresa_bloqueada(nome_empresa) or eh_empresa_bloqueada(dominio_emp):
-        raise ValueError("A empresa SM&A faz parte da lista de restrição institucional da KR Engenharia e não deve ser contactada para prospecção.")
+        raise ValueError("O domínio sma-eng.com.br não deve ser prospectado como lead.")
 
     cargo_alvo = empresa_info.get("cargo_alvo", "Gerente de Manutenção Elétrica")
     contexto = f"""
@@ -387,9 +387,9 @@ def executar_varredura_setor(
         nome_emp = emp["nome"]
         dominio_emp = emp.get("dominio", "")
 
-        # Verificação rigorosa de bloqueio institucional (ex: SM&A)
+        # Ignora se pertencer ao domínio restrito sma-eng.com.br
         if eh_empresa_bloqueada(nome_emp) or eh_empresa_bloqueada(dominio_emp):
-            print(f"   🚫 [BLOQUEIO INSTITUCIONAL] {nome_emp} ignorada da prospecção (Restrição SM&A).")
+            print(f"   ℹ️ [Ignorado] {nome_emp} possui domínio restrito (@sma-eng.com.br). Não será adicionada como novo lead.")
             continue
 
         cargo_alvo = emp.get("cargo_alvo", "Gerente de Manutenção Elétrica")

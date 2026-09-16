@@ -181,11 +181,11 @@ def enviar_email_funcionario(
     Envia um e-mail a partir da caixa postal corporativa oficial de um funcionário de IA,
     incluindo a assinatura oficial com logomarca e dados da KR Engenharia.
     """
-    # Regra Institucional Inviolável: Bloqueio estrito de prospecção da SM&A
+    # Regra: Não prospectar o domínio @sma-eng.com.br
     if eh_empresa_bloqueada(destinatario):
         return {
             "sucesso": False,
-            "erro": "Envio cancelado: O destinatário pertence à SM&A, que está na lista de restrição institucional de prospecção da KR Engenharia."
+            "erro": "Envio cancelado: O domínio @sma-eng.com.br não deve ser prospectado como lead."
         }
 
     conta = CONTAS_FUNCIONARIOS.get(funcionario_id)

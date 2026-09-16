@@ -579,8 +579,8 @@ with tab_prospeccao:
                             if st.button("🚀 Disparar E-mail com Anexos (Titan SMTP)", key=f"btn_send_{lid}", type="primary"):
                                 if not email_dest_input or "@" not in email_dest_input:
                                     st.warning("⚠️ Cole o e-mail verificado do gestor elétrico (obtido via Lusha ou LinkedIn) para prosseguir com o disparo.")
-                                elif eh_empresa_bloqueada(email_dest_input) or eh_empresa_bloqueada(lead.get("empresa", "")):
-                                    st.error("🚫 **[BLOQUEIO INSTITUCIONAL ATIVADO]** Envio cancelado. A empresa **SM&A** está na lista de restrição institucional da KR Engenharia e não deve ser prospectada.")
+                                elif eh_empresa_bloqueada(email_dest_input) or eh_empresa_bloqueada(lead.get("dominio", "")):
+                                    st.warning("ℹ️ Envio não permitido: O domínio @sma-eng.com.br não deve ser prospectado como lead.")
                                 else:
                                     with st.spinner(f"Lucas Campos conectando à conta Titan e enviando para {email_dest_input}..."):
                                         res_envio = enviar_email_funcionario(
@@ -652,7 +652,7 @@ with tab_prospeccao:
         
         if btn_gerar_cadencia and empresa_alvo:
             if eh_empresa_bloqueada(empresa_alvo):
-                st.error("🚫 **[BLOQUEIO INSTITUCIONAL ATIVADO]**\n\nA empresa **SM&A** está expressamente cadastrada na **Lista de Restrição Institucional** da KR Engenharia e **NÃO deve ser contactada para prospecção de clientes**.")
+                st.warning("ℹ️ O domínio **sma-eng.com.br** está configurado para não ser prospectado como lead pelo Lucas.")
             else:
                 with st.spinner("Lucas Campos mapeando decisores e estruturando abordagem..."):
                     try:
@@ -769,7 +769,7 @@ with tab_prospeccao:
                 if not destinatario_email or "@" not in destinatario_email:
                     st.warning("Por favor, informe um endereço de e-mail válido para o destinatário.")
                 elif eh_empresa_bloqueada(destinatario_email) or eh_empresa_bloqueada(st.session_state.get('empresa_atual', '')):
-                    st.error("🚫 **[BLOQUEIO INSTITUCIONAL ATIVADO]** Envio cancelado. A empresa **SM&A** está na lista de restrição da KR Engenharia e não deve ser prospectada.")
+                    st.warning("ℹ️ Envio não realizado: O domínio @sma-eng.com.br não deve ser prospectado como lead.")
                 else:
                     anexos_envio = docs_institucionais["anexos_padrao"] if anexar_documentos else None
                     with st.spinner(f"Lucas Campos conectando à conta e disparando e-mail para {destinatario_email}..."):

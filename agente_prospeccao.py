@@ -27,9 +27,8 @@ def gerar_cadencia_prospeccao(perfil_empresa: str, especialidade: str = "") -> s
     """Gera plano de abordagem de prospecção B2B personalizado."""
     if eh_empresa_bloqueada(perfil_empresa):
         return (
-            "🚫 **[BLOQUEIO INSTITUCIONAL ATIVADO]**\n\n"
-            "A empresa **SM&A** está expressamente cadastrada na **Lista de Restrição Institucional** da KR Engenharia.\n\n"
-            "⚠️ **Diretriz Técnica:** Nunca contactar a SM&A como prospecção de clientes. O fluxo foi interrompido por conformidade ética e estratégica."
+            "ℹ️ **[DOMÍNIO RESTRITO]**\n\n"
+            "O domínio **sma-eng.com.br** está configurado para não ser prospectado como lead pelo Lucas."
         )
 
     print(f"\n🎯 [Agente de Prospecção] Mapeando abordagem para {perfil_empresa}...")

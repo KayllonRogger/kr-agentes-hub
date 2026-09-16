@@ -20,41 +20,22 @@ if not GOOGLE_API_KEY:
 LUSHA_API_KEY = os.getenv("LUSHA_API_KEY", "")
 APOLLO_API_KEY = os.getenv("APOLLO_API_KEY", "")
 
-# Lista de Restrição Institucional / Blacklist de Prospecção
-# REGRA INVIOLÁVEL: A empresa SM&A NUNCA deve ser contactada para prospecção de clientes.
-EMPRESAS_BLOQUEADAS_PROSPECCAO = [
-    "SM&A", "SMA", "SM&A ENGENHARIA", "SM&A CONSULTORIA",
-    "SMA ENGENHARIA", "SMA CONSULTORIA", "SMAENG",
-    "SMA.ENG.BR", "SMAENGENHARIA.COM.BR"
+# Domínios excluídos da prospecção de novos leads pelo Lucas
+DOMINIOS_BLOQUEADOS_PROSPECCAO = [
+    "sma-eng.com.br"
 ]
 
-def eh_empresa_bloqueada(texto: str) -> bool:
+def eh_dominio_bloqueado(texto: str) -> bool:
     """
-    Verifica se um nome, razão social, domínio ou e-mail pertence à lista de restrição da KR (ex: SM&A).
-    Garante que a SM&A jamais seja incluída em campanhas de prospecção ou receba e-mails outbound.
+    Verifica se o e-mail ou domínio pertence ao domínio restrito @sma-eng.com.br,
+    garantindo que o Lucas nunca tente torná-lo em um novo lead de prospecção.
     """
     if not texto:
         return False
-    import re
-    txt_lower = texto.lower().strip()
-    
-    # Domínios ou e-mails bloqueados
-    dominios_bloqueados = ["@sma.eng.br", "@smaengenharia.com.br", "sma.eng.br", "smaengenharia.com.br"]
-    for dom in dominios_bloqueados:
-        if dom in txt_lower:
-            return True
+    return "sma-eng.com.br" in texto.lower().strip()
 
-    # Padrões com SM&A ou SMA como palavra isolada
-    padrao = r"\b(sm&a|sma)\b"
-    if re.search(padrao, txt_lower):
-        return True
-
-    # Normalizado sem pontuação ou espaços
-    normalizado = re.sub(r"[^a-z0-9]", "", txt_lower)
-    if "smeae" in normalizado or "smaeng" in normalizado or "smaconsult" in normalizado:
-        return True
-
-    return False
+# Alias para compatibilidade
+eh_empresa_bloqueada = eh_dominio_bloqueado
 
 # Metadados institucionais centralizados da KR Engenharia
 DADOS_EMPRESA = {

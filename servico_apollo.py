@@ -29,9 +29,9 @@ def consultar_empresa_apollo(dominio: str, api_key: Optional[str] = None) -> Dic
         return {
             "sucesso": False,
             "encontrado": False,
-            "mensagem": "Consulta bloqueada: A SM&A faz parte da lista de restrição institucional da KR Engenharia.",
+            "mensagem": "Consulta bloqueada: O domínio sma-eng.com.br não deve ser prospectado.",
             "dados": None,
-            "erro": "BLOCKED_COMPANY"
+            "erro": "BLOCKED_DOMAIN"
         }
 
     key = (api_key or APOLLO_API_KEY or "").strip()
@@ -135,13 +135,13 @@ def consultar_contato_apollo(
     Tenta localizar contato pelo endpoint People Match da Apollo.io.
     Caso a conta seja do plano gratuito, orienta sobre o uso do plano ou sugere o Lusha.
     """
-    if (dominio and eh_empresa_bloqueada(dominio)) or (primeiro_nome and eh_empresa_bloqueada(f"{primeiro_nome} {ultimo_nome}")):
+    if dominio and eh_empresa_bloqueada(dominio):
         return {
             "sucesso": False,
             "encontrado": False,
-            "mensagem": "Consulta bloqueada: A SM&A faz parte da lista de restrição institucional da KR Engenharia.",
+            "mensagem": "Consulta bloqueada: O domínio sma-eng.com.br não deve ser prospectado.",
             "dados": None,
-            "erro": "BLOCKED_COMPANY"
+            "erro": "BLOCKED_DOMAIN"
         }
 
     key = (api_key or APOLLO_API_KEY or "").strip()
@@ -221,3 +221,4 @@ def consultar_contato_apollo(
             "dados": None,
             "erro": "CONNECTION_ERROR"
         }
+
