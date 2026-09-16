@@ -32,13 +32,23 @@ st.markdown("""
         letter-spacing: 1px;
         margin-bottom: 25px;
     }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+    .employee-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 12px;
     }
-    .stTabs [data-baseweb="tab"] {
-        padding: 8px 16px;
-        border-radius: 4px;
+    .employee-name {
+        color: #1a365d;
+        font-weight: 700;
+        font-size: 13pt;
+    }
+    .employee-role {
+        color: #2b6cb0;
+        font-size: 9.5pt;
         font-weight: 600;
+        margin-bottom: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -50,9 +60,7 @@ for p in ["assets/logo.png", "logo.png"]:
         caminho_logo = p
         break
 
-# -------------------------------------------------------------
-# CONTROLE DE ACESSO (LOGIN PRIVADO)
-# -------------------------------------------------------------
+# CONTROLE DE ACESSO (LOGIN)
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
@@ -80,9 +88,16 @@ if not st.session_state.autenticado:
     st.stop()
 
 # -------------------------------------------------------------
-# PAINEL PRINCIPAL (APÓS LOGIN BEM-SUCEDIDO)
+# PAINEL PRINCIPAL (LOGADO)
 # -------------------------------------------------------------
 from cerebro_kr import cerebro
+from empresa_kr import (
+    FUNCIONARIOS,
+    carregar_tarefas,
+    atribuir_tarefa,
+    executar_tarefa_funcionario,
+    aprovar_tarefa_diretor
+)
 from grafo_agentes import (
     carregar_acervo_tecnico,
     agente_diagnostico,
@@ -91,7 +106,7 @@ from grafo_agentes import (
     EstadoProjeto
 )
 from agente_marketing import gerar_conteudo_linkedin
-from agente_prospeccao import gerar_cadencia_prospeccao
+from agente_prospeccao import gerar_cadencia_prospeccao, gerar_link_busca_linkedin
 from agente_inteligencia import analisar_especificacao_tecnica
 from agente_pos_comissionamento import gerar_pacote_encerramento
 from agente_backoffice import processar_conformidade_backoffice
@@ -99,27 +114,28 @@ from gerar_documento import renderizar_proposta
 
 # Cabeçalho da Aplicação
 st.markdown('<div class="main-title">KR ENGENHARIA</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Centro Operacional Multi-Agente • Sistemas de Potência & Automação SAS</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Centro Operacional Multi-Agente • Equipe Virtual de Especialistas</div>', unsafe_allow_html=True)
 
 # Barra Lateral
 with st.sidebar:
     if caminho_logo:
         st.image(caminho_logo, width=160)
-    st.title("Painel de Controle")
-    st.write(f"Conectado como: **{USUARIO_CORRETO}**")
+    st.title("Diretor Técnico")
+    st.write("Eng. Kayllon Rogger Nunes")
+    st.caption("CREA-MG nº 141854962-2")
     if st.button("Sair da Conta"):
         st.session_state.autenticado = False
         st.rerun()
     st.divider()
-    st.write("📚 **Base de Conhecimento:**")
-    acervo_itens = os.listdir("acervo") if os.path.exists("acervo") else []
-    for item in acervo_itens:
-        st.caption(f"• {item}")
+    st.write("👥 **Equipe de Funcionários:**")
+    for fid, f_info in FUNCIONARIOS.items():
+        st.caption(f"• **{f_info['nome']}** ({f_info['departamento']})")
     st.divider()
     st.caption("LangGraph + Google Gemini 3.5 + LangSmith")
 
-# Definição das Abas dos 7 Departamentos
-tab_cerebro, tab_propostas, tab_marketing, tab_prospeccao, tab_edital, tab_pos_obra, tab_backoffice = st.tabs([
+# Definição das Abas
+tab_equipe, tab_cerebro, tab_propostas, tab_marketing, tab_prospeccao, tab_edital, tab_pos_obra, tab_backoffice = st.tabs([
+    "🏢 Escritório da Equipe",
     "🧠 Cérebro Central",
     "⚡ Propostas Técnicas",
     "📢 Marketing B2B",
@@ -129,7 +145,77 @@ tab_cerebro, tab_propostas, tab_marketing, tab_prospeccao, tab_edital, tab_pos_o
     "📋 Backoffice & HSE"
 ])
 
-# ABA 1: CÉREBRO CENTRAL (COM MEMÓRIA)
+# -------------------------------------------------------------
+# ABA 1: ESCRITÓRIO VIRTUAL DA EQUIPE
+# -------------------------------------------------------------
+with tab_equipe:
+    st.subheader("Quadro Operacional dos Funcionários Autônomos")
+    st.write("Cada agente opera de forma independente em sua especialidade. As entregas finalizadas são enviadas para a sua aprovação.")
+    
+    tarefas_atuais = carregar_tarefas()
+    pendentes_aprovacao = [t for t in tarefas_atuais if t["status"] == "AGUARDANDO_APROVACAO"]
+    em_execucao = [t for t in tarefas_atuais if t["status"] in ["PENDENTE", "EM_EXECUCAO"]]
+    concluidas = [t for t in tarefas_atuais if t["status"] == "CONCLUIDO"]
+    
+    # Métricas da Empresa
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Funcionários Ativos", len(FUNCIONARIOS))
+    m2.metric("Tarefas em Andamento", len(em_execucao))
+    m3.metric("Aguardando sua Aprovação", len(pendentes_aprovacao))
+    m4.metric("Tarefas Concluídas", len(concluidas))
+    
+    st.divider()
+
+    # MESA DO DIRETOR: APROVAÇÃO DE ENTREGAS
+    st.markdown("### 📥 Mesa do Diretor (Entregas Aguardando sua Aprovação)")
+    if not pendentes_aprovacao:
+        st.info("Nenhuma entrega pendente no momento. Seus funcionários estão aguardando novas diretrizes ou trabalhando nas tarefas.")
+    else:
+        for t in pendentes_aprovacao:
+            with st.expander(f"🔔 {t['funcionario_nome']} finalizou: {t['titulo']} (Criado em {t['data_criacao']})", expanded=True):
+                st.write(f"**Cargo:** {t['cargo']}")
+                st.write(f"**Briefing inicial:** {t['instrucao']}")
+                st.markdown("**Resultado Produzido pelo Funcionário:**")
+                st.markdown(t["resultado"])
+                
+                c_aprov1, c_aprov2 = st.columns(2)
+                with c_aprov1:
+                    parecer = st.text_input(f"Observações do Diretor para {t['id']}:", value="Aprovado com rigor técnico.", key=f"obs_{t['id']}")
+                with c_aprov2:
+                    st.write("")
+                    st.write("")
+                    if st.button(f"✅ Aprovar Entrega de {t['funcionario_nome']}", key=f"btn_aprov_{t['id']}", type="primary"):
+                        aprovar_tarefa_diretor(t["id"], parecer)
+                        st.success(f"Entrega {t['id']} aprovada pelo Eng. Kayllon!")
+                        st.rerun()
+
+    st.divider()
+
+    # DELEGAR TAREFA A UM FUNCIONÁRIO ESPECÍFICO
+    st.markdown("### ➕ Delegar Tarefa para um Funcionário")
+    col_del1, col_del2 = st.columns(2)
+    
+    with col_del1:
+        opcoes_func = {fid: f"{info['nome']} — {info['cargo']}" for fid, info in FUNCIONARIOS.items()}
+        func_escolhido = st.selectbox("Selecione o Funcionário:", list(opcoes_func.keys()), format_func=lambda x: opcoes_func[x])
+        titulo_tarefa = st.text_input("Título da Tarefa:", placeholder="Ex: Prospecção da Mineradora Samarco ou Artigo sobre Curto-Circuito")
+        
+    with col_del2:
+        instrucao_tarefa = st.text_area("Instruções Técnicas / Dados de Entrada:", height=100, placeholder="Descreva os dados do cliente, normas ou objetivo do trabalho...")
+        
+    if st.button("Atribuir e Executar Tarefa Autônoma", type="primary"):
+        if titulo_tarefa and instrucao_tarefa:
+            with st.spinner(f"Atribuindo e aguardando execução de {FUNCIONARIOS[func_escolhido]['nome']}..."):
+                nova_t = atribuir_tarefa(titulo_tarefa, func_escolhido, instrucao_tarefa)
+                executar_tarefa_funcionario(nova_t["id"])
+                st.success(f"Tarefa executada por {FUNCIONARIOS[func_escolhido]['nome']} e colocada na sua Mesa de Aprovação!")
+                st.rerun()
+        else:
+            st.warning("Preencha o título e as instruções da tarefa.")
+
+# -------------------------------------------------------------
+# ABA 2: CÉREBRO CENTRAL (SUPERVISOR COM CHAT)
+# -------------------------------------------------------------
 with tab_cerebro:
     st.subheader("Orquestrador Supervisor com Memória de Sessão")
     st.write("Converse com o Cérebro Central. Ele mantém o contexto das mensagens anteriores e roteia entre os departamentos.")
@@ -160,7 +246,9 @@ with tab_cerebro:
                 st.markdown(resp_texto)
                 st.session_state.mensagens_chat.append({"role": "assistant", "content": resp_texto})
 
-# ABA 2: PROPOSTAS E ENGENHARIA
+# -------------------------------------------------------------
+# ABA 3: PROPOSTAS E ENGENHARIA
+# -------------------------------------------------------------
 with tab_propostas:
     st.subheader("Esteira de Diagnóstico e Propostas Comerciais")
     col1, col2 = st.columns(2)
@@ -203,13 +291,15 @@ with tab_propostas:
                             mime="text/html"
                         )
 
-# ABA 3: MARKETING B2B
+# -------------------------------------------------------------
+# ABA 4: MARKETING B2B
+# -------------------------------------------------------------
 with tab_marketing:
     st.subheader("Gerador de Artigos e Autoridade Técnica (LinkedIn)")
     tema_post = st.text_area("Tema técnico ou Estudo de Caso de obra passada:", height=150, placeholder="Ex.: Comissionamento de subestação GIS 230/400 kV offshore com validação prévia em bancada.")
     if st.button("Gerar Artigo Técnico para LinkedIn", type="primary"):
         if tema_post:
-            with st.spinner("Agente de Marketing estruturando post..."):
+            with st.spinner("Mariana Esteves estruturando post..."):
                 post = gerar_conteudo_linkedin(tema_post)
                 os.makedirs("output", exist_ok=True)
                 with open("output/post_linkedin.md", "w", encoding="utf-8") as f:
@@ -217,11 +307,11 @@ with tab_marketing:
                 st.success("Artigo gerado com sucesso!")
                 st.markdown(post)
 
-# ABA 4: PROSPECÇÃO OUTBOUND (COM BUSCA EM 1 CLIQUE)
+# -------------------------------------------------------------
+# ABA 5: PROSPECÇÃO OUTBOUND
+# -------------------------------------------------------------
 with tab_prospeccao:
     st.subheader("Inteligência Comercial & Abordagem B2B no LinkedIn")
-    st.write("Mapeie decisores em indústrias ou EPCistas e gere mensagens técnicas prontas com link de busca direta.")
-    
     col_alvo1, col_alvo2 = st.columns(2)
     with col_alvo1:
         empresa_alvo = st.text_input("Empresa-Alvo / Planta Industrial:", placeholder="Ex: Mineração Vale - Carajás ou EPCista Andrade Gutierrez")
@@ -239,10 +329,8 @@ with tab_prospeccao:
     btn_gerar_cadencia = st.button("Gerar Abordagem e Link de Busca", type="primary")
     
     if btn_gerar_cadencia and empresa_alvo:
-        with st.spinner("Mapeando decisores e estruturando abordagem..."):
+        with st.spinner("Lucas Campos mapeando decisores e estruturando abordagem..."):
             cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
-            
-            # Gera o link direto no LinkedIn
             import urllib.parse
             query_busca = urllib.parse.quote(f"{cargo_busca} {empresa_alvo}")
             link_linkedin = f"https://www.linkedin.com/search/results/people/?keywords={query_busca}"
@@ -252,16 +340,15 @@ with tab_prospeccao:
                 f.write(cadencia)
                 
             st.success("Estratégia de Abordagem Concluída!")
-            
-            # Botão de Ação Direta com Link do LinkedIn
             st.link_button(
                 label=f"🔗 Abrir Busca de {cargo_busca} na {empresa_alvo} no LinkedIn",
                 url=link_linkedin
             )
-            
             st.markdown(cadencia)
 
-# ABA 5: AUDITORIA DE EDITAIS
+# -------------------------------------------------------------
+# ABA 6: AUDITORIA DE EDITAIS
+# -------------------------------------------------------------
 with tab_edital:
     st.subheader("Auditor de Termos de Referência (TR) e Editais")
     texto_tr = st.text_area("Cole trechos do Termo de Referência ou Especificação Técnica do cliente:", height=200, placeholder="Ex.: O cliente exige laudo NR-10 de condutores em canaletas...")
@@ -275,13 +362,15 @@ with tab_edital:
                 st.success("Auditoria concluída!")
                 st.markdown(analise)
 
-# ABA 6: PÓS-COMISSIONAMENTO E ART
+# -------------------------------------------------------------
+# ABA 7: PÓS-COMISSIONAMENTO E ART
+# -------------------------------------------------------------
 with tab_pos_obra:
     st.subheader("Sucesso do Cliente, DataBook As-Built e ART (CREA-MG)")
     dados_conclusao = st.text_area("Dados da Obra Recém-Concluída:", height=150, placeholder="Ex.: Cliente Mineração Vale, concluída parametrização de 6 relés SIPROTEC 5...")
     if st.button("Gerar Pacote de Encerramento e ART", type="primary"):
         if dados_conclusao:
-            with st.spinner("Gerando índice de DataBook e minuta de ART..."):
+            with st.spinner("Beatriz Silveira gerando índice de DataBook e minuta de ART..."):
                 pacote = gerar_pacote_encerramento(dados_conclusao)
                 os.makedirs("output", exist_ok=True)
                 with open("output/plano_pos_comissionamento.md", "w", encoding="utf-8") as f:
@@ -289,7 +378,9 @@ with tab_pos_obra:
                 st.success("Pacote de encerramento gerado!")
                 st.markdown(pacote)
 
-# ABA 7: BACKOFFICE E CONFORMIDADE HSE
+# -------------------------------------------------------------
+# ABA 8: BACKOFFICE E CONFORMIDADE HSE
+# -------------------------------------------------------------
 with tab_backoffice:
     st.subheader("Habilitação de Campo (NR-10/NR-35), Metrologia RBC e Medições")
     dados_backoffice = st.text_area("Dados da Mobilização ou Faturamento:", height=150, placeholder="Ex.: Mobilização de 2 técnicos com mala Conprove e faturamento da 2ª parcela...")
