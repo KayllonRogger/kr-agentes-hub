@@ -1,25 +1,11 @@
 import os
-import urllib.parse
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from config import DADOS_EMPRESA
+from utils import get_llm, extrair_texto, gerar_link_busca_linkedin, salvar_markdown_saida
 
-# 1. Carrega configurações do .env
-load_dotenv()
-
-# 2. Inicializa o modelo Gemini
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash-lite",
-)
-
-def extrair_texto(resposta) -> str:
-    if isinstance(resposta.content, list):
-        return resposta.content[0].get('text', '')
-    return str(resposta.content)
-
-PROMPT_PROSPECCAO_1CLIQUE = """Você é o Especialista em Inteligência Comercial e Prospecção B2B da KR Engenharia.
-Responsável Técnico: Eng. Kayllon Rogger Nunes (CREA-MG nº 141854962-2).
-Posicionamento: Boutique Técnica em Sistemas de Potência, Proteção (ETAP), Automação de Subestações (SAS / IEC 61850) e Comissionamento (TAF/TAC).
+PROMPT_PROSPECCAO_1CLIQUE = f"""Você é o Especialista em Inteligência Comercial e Prospecção B2B da {DADOS_EMPRESA['nome_fantasia']}.
+Responsável Técnico: {DADOS_EMPRESA['responsavel_tecnico']} ({DADOS_EMPRESA['crea']}).
+Posicionamento: {DADOS_EMPRESA['posicionamento']}.
 
 SUA MISSÃO:
 Receber o nome de uma empresa-alvo e a especialidade desejada, e estruturar uma abordagem técnica de alto impacto pronta para envio no LinkedIn.
@@ -38,24 +24,20 @@ ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
 """
 
 def gerar_cadencia_prospeccao(perfil_empresa: str, especialidade: str = "") -> str:
+    """Gera plano de abordagem de prospecção B2B personalizado."""
     print(f"\n🎯 [Agente de Prospecção] Mapeando abordagem para {perfil_empresa}...")
     
     contexto = f"EMPRESA-ALVO: {perfil_empresa}\n"
     if especialidade:
         contexto += f"SERVIÇO / DISCIPLINA EM FOCO: {especialidade}\n"
         
+    llm = get_llm(temperature=0.3)
     resp = llm.invoke([
         SystemMessage(content=PROMPT_PROSPECCAO_1CLIQUE),
         HumanMessage(content=contexto)
     ])
     
     return extrair_texto(resp)
-
-def gerar_link_busca_linkedin(empresa: str, cargo: str = "Manutenção Elétrica") -> str:
-    """Gera o link de busca direta de pessoas no LinkedIn com filtros pré-aplicados."""
-    query = f"{cargo} {empresa}"
-    query_encoded = urllib.parse.quote(query)
-    return f"https://www.linkedin.com/search/results/people/?keywords={query_encoded}"
 
 if __name__ == "__main__":
     empresa = "Gerdau Aços Longos - Usina Ouro Branco"
@@ -67,11 +49,7 @@ if __name__ == "__main__":
     
     resultado = gerar_cadencia_prospeccao(empresa, servico)
     link = gerar_link_busca_linkedin("Gerdau", "Gerente Manutenção Elétrica")
+    salvar_markdown_saida("cadencia_prospeccao.md", resultado)
     
     print(resultado)
     print(f"\n🔗 Link de Busca Direto: {link}")
-
-def gerar_link_busca_linkedin(empresa: str, cargo: str = "Manutenção Elétrica") -> str:
-    import urllib.parse
-    query = f"{cargo} {empresa}"
-    return f"https://www.linkedin.com/search/results/people/?keywords={urllib.parse.quote(query)}"

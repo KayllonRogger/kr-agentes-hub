@@ -1,17 +1,33 @@
 import os
+import uuid
 import streamlit as st
-from dotenv import load_dotenv
 
-# Carrega variáveis de ambiente
-load_dotenv()
-
-# Credenciais configuradas no .env
-USUARIO_CORRETO = os.getenv("APP_USUARIO", "admin")
-SENHA_CORRETA = os.getenv("APP_SENHA", "kr2026")
+# Módulos centrais refatorados
+from config import APP_USUARIO, APP_SENHA, DADOS_EMPRESA
+from utils import (
+    carregar_acervo_tecnico,
+    gerar_link_busca_linkedin,
+    salvar_markdown_saida
+)
+from cerebro_kr import cerebro
+from empresa_kr import (
+    FUNCIONARIOS,
+    carregar_tarefas,
+    atribuir_tarefa,
+    executar_tarefa_funcionario,
+    aprovar_tarefa_diretor
+)
+from grafo_agentes import executar_pipeline_proposta
+from agente_marketing import gerar_conteudo_linkedin
+from agente_prospeccao import gerar_cadencia_prospeccao
+from agente_inteligencia import analisar_especificacao_tecnica
+from agente_pos_comissionamento import gerar_pacote_encerramento
+from agente_backoffice import processar_conformidade_backoffice
+from gerar_documento import renderizar_proposta
 
 # Configuração da Página Web
 st.set_page_config(
-    page_title="KR Engenharia - Centro de IA",
+    page_title=f"{DADOS_EMPRESA['nome_fantasia']} - Centro de IA",
     page_icon="⚡",
     layout="wide"
 )
@@ -53,6 +69,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Cache para acervo técnico
+@st.cache_data(ttl=3600)
+def carregar_acervo_cached() -> str:
+    return carregar_acervo_tecnico("acervo")
+
 # Localiza imagem do logo
 caminho_logo = None
 for p in ["assets/logo.png", "logo.png"]:
@@ -64,6 +85,9 @@ for p in ["assets/logo.png", "logo.png"]:
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
+if "session_id" not in st.session_state:
+    st.session_state.session_id = f"sessao-{uuid.uuid4().hex[:8]}"
+
 if not st.session_state.autenticado:
     col_vazia1, col_login, col_vazia2 = st.columns(3)
     with col_login:
@@ -71,7 +95,7 @@ if not st.session_state.autenticado:
         st.write("")
         if caminho_logo:
             st.image(caminho_logo, width=160)
-        st.markdown('<div class="main-title">KR ENGENHARIA</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="main-title">{DADOS_EMPRESA["nome_fantasia"].upper()}</div>', unsafe_allow_html=True)
         st.markdown('<div class="sub-title">Acesso Restrito ao Centro de IA</div>', unsafe_allow_html=True)
         
         with st.form("form_login"):
@@ -80,7 +104,7 @@ if not st.session_state.autenticado:
             btn_entrar = st.form_submit_button("Acessar Painel", type="primary")
             
             if btn_entrar:
-                if usuario_input == USUARIO_CORRETO and senha_input == SENHA_CORRETA:
+                if usuario_input == APP_USUARIO and senha_input == APP_SENHA:
                     st.session_state.autenticado = True
                     st.rerun()
                 else:
@@ -90,30 +114,7 @@ if not st.session_state.autenticado:
 # -------------------------------------------------------------
 # PAINEL PRINCIPAL (LOGADO)
 # -------------------------------------------------------------
-from cerebro_kr import cerebro
-from empresa_kr import (
-    FUNCIONARIOS,
-    carregar_tarefas,
-    atribuir_tarefa,
-    executar_tarefa_funcionario,
-    aprovar_tarefa_diretor
-)
-from grafo_agentes import (
-    carregar_acervo_tecnico,
-    agente_diagnostico,
-    agente_operacoes,
-    agente_comercial,
-    EstadoProjeto
-)
-from agente_marketing import gerar_conteudo_linkedin
-from agente_prospeccao import gerar_cadencia_prospeccao
-from agente_inteligencia import analisar_especificacao_tecnica
-from agente_pos_comissionamento import gerar_pacote_encerramento
-from agente_backoffice import processar_conformidade_backoffice
-from gerar_documento import renderizar_proposta
-
-# Cabeçalho da Aplicação
-st.markdown('<div class="main-title">KR ENGENHARIA</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="main-title">{DADOS_EMPRESA["nome_fantasia"].upper()}</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Centro Operacional Multi-Agente • Equipe Virtual de Especialistas</div>', unsafe_allow_html=True)
 
 # Barra Lateral
@@ -121,17 +122,19 @@ with st.sidebar:
     if caminho_logo:
         st.image(caminho_logo, width=160)
     st.title("Diretor Técnico")
-    st.write("Eng. Kayllon Rogger Nunes")
-    st.caption("CREA-MG nº 141854962-2")
+    st.write(DADOS_EMPRESA["responsavel_tecnico"])
+    st.caption(DADOS_EMPRESA["crea"])
+    st.caption(f"Sessão Ativa: `{st.session_state.session_id}`")
     if st.button("Sair da Conta"):
         st.session_state.autenticado = False
+        st.session_state.session_id = f"sessao-{uuid.uuid4().hex[:8]}"
         st.rerun()
     st.divider()
     st.write("👥 **Equipe de Funcionários:**")
     for fid, f_info in FUNCIONARIOS.items():
         st.caption(f"• **{f_info['nome']}** ({f_info['departamento']})")
     st.divider()
-    st.caption("LangGraph + Google Gemini 3.5 + LangSmith")
+    st.caption("LangGraph + Google Gemini + LangSmith")
 
 # Definição das Abas
 tab_equipe, tab_cerebro, tab_propostas, tab_marketing, tab_prospeccao, tab_edital, tab_pos_obra, tab_backoffice = st.tabs([
@@ -153,11 +156,10 @@ with tab_equipe:
     st.write("Cada agente opera de forma independente em sua especialidade. As entregas finalizadas são enviadas para a sua aprovação.")
     
     tarefas_atuais = carregar_tarefas()
-    pendentes_aprovacao = [t for t in tarefas_atuais if t["status"] == "AGUARDANDO_APROVACAO"]
-    em_execucao = [t for t in tarefas_atuais if t["status"] in ["PENDENTE", "EM_EXECUCAO"]]
-    concluidas = [t for t in tarefas_atuais if t["status"] == "CONCLUIDO"]
+    pendentes_aprovacao = [t for t in tarefas_atuais if t.get("status") == "AGUARDANDO_APROVACAO"]
+    em_execucao = [t for t in tarefas_atuais if t.get("status") in ["PENDENTE", "EM_EXECUCAO"]]
+    concluidas = [t for t in tarefas_atuais if t.get("status") == "CONCLUIDO"]
     
-    # Métricas da Empresa
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Funcionários Ativos", len(FUNCIONARIOS))
     m2.metric("Tarefas em Andamento", len(em_execucao))
@@ -166,17 +168,16 @@ with tab_equipe:
     
     st.divider()
 
-    # MESA DO DIRETOR: APROVAÇÃO DE ENTREGAS
     st.markdown("### 📥 Mesa do Diretor (Entregas Aguardando sua Aprovação)")
     if not pendentes_aprovacao:
         st.info("Nenhuma entrega pendente no momento. Seus funcionários estão aguardando novas diretrizes ou trabalhando nas tarefas.")
     else:
         for t in pendentes_aprovacao:
-            with st.expander(f"🔔 {t['funcionario_nome']} finalizou: {t['titulo']} (Criado em {t['data_criacao']})", expanded=True):
-                st.write(f"**Cargo:** {t['cargo']}")
-                st.write(f"**Briefing inicial:** {t['instrucao']}")
+            with st.expander(f"🔔 {t.get('funcionario_nome')} finalizou: {t.get('titulo')} (Criado em {t.get('data_criacao')})", expanded=True):
+                st.write(f"**Cargo:** {t.get('cargo')}")
+                st.write(f"**Briefing inicial:** {t.get('instrucao')}")
                 st.markdown("**Resultado Produzido pelo Funcionário:**")
-                st.markdown(t["resultado"])
+                st.markdown(t.get("resultado", ""))
                 
                 c_aprov1, c_aprov2 = st.columns(2)
                 with c_aprov1:
@@ -184,14 +185,13 @@ with tab_equipe:
                 with c_aprov2:
                     st.write("")
                     st.write("")
-                    if st.button(f"✅ Aprovar Entrega de {t['funcionario_nome']}", key=f"btn_aprov_{t['id']}", type="primary"):
+                    if st.button(f"✅ Aprovar Entrega de {t.get('funcionario_nome')}", key=f"btn_aprov_{t['id']}", type="primary"):
                         aprovar_tarefa_diretor(t["id"], parecer)
-                        st.success(f"Entrega {t['id']} aprovada pelo Eng. Kayllon!")
+                        st.success(f"Entrega {t['id']} aprovada pelo {DADOS_EMPRESA['responsavel_tecnico']}!")
                         st.rerun()
 
     st.divider()
 
-    # DELEGAR TAREFA A UM FUNCIONÁRIO ESPECÍFICO
     st.markdown("### ➕ Delegar Tarefa para um Funcionário")
     col_del1, col_del2 = st.columns(2)
     
@@ -206,10 +206,13 @@ with tab_equipe:
     if st.button("Atribuir e Executar Tarefa Autônoma", type="primary"):
         if titulo_tarefa and instrucao_tarefa:
             with st.spinner(f"Atribuindo e aguardando execução de {FUNCIONARIOS[func_escolhido]['nome']}..."):
-                nova_t = atribuir_tarefa(titulo_tarefa, func_escolhido, instrucao_tarefa)
-                executar_tarefa_funcionario(nova_t["id"])
-                st.success(f"Tarefa executada por {FUNCIONARIOS[func_escolhido]['nome']} e colocada na sua Mesa de Aprovação!")
-                st.rerun()
+                try:
+                    nova_t = atribuir_tarefa(titulo_tarefa, func_escolhido, instrucao_tarefa)
+                    executar_tarefa_funcionario(nova_t["id"])
+                    st.success(f"Tarefa executada por {FUNCIONARIOS[func_escolhido]['nome']} e colocada na sua Mesa de Aprovação!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Falha na execução da tarefa: {e}")
         else:
             st.warning("Preencha o título e as instruções da tarefa.")
 
@@ -234,17 +237,23 @@ with tab_cerebro:
 
         with st.chat_message("assistant"):
             with st.spinner("Cérebro Central consultando departamentos..."):
-                config_sessao = {"configurable": {"thread_id": "sessao-web-kr"}}
-                res = cerebro.invoke({
-                    "entrada_usuario": prompt_usuario,
-                    "categoria": "",
-                    "historico_conversa": st.session_state.mensagens_chat,
-                    "resposta_final": ""
-                }, config=config_sessao)
-                
-                resp_texto = f"**[Departamento: {res['categoria']}]**\n\n" + res["resposta_final"]
-                st.markdown(resp_texto)
-                st.session_state.mensagens_chat.append({"role": "assistant", "content": resp_texto})
+                try:
+                    config_sessao = {"configurable": {"thread_id": st.session_state.session_id}}
+                    res = cerebro.invoke({
+                        "entrada_usuario": prompt_usuario,
+                        "categoria": "",
+                        "historico_conversa": st.session_state.mensagens_chat,
+                        "resposta_final": ""
+                    }, config=config_sessao)
+                    
+                    categoria_resp = res.get("categoria", "GERAL")
+                    resp_texto = f"**[Departamento: {categoria_resp}]**\n\n" + res.get("resposta_final", "")
+                    st.markdown(resp_texto)
+                    st.session_state.mensagens_chat.append({"role": "assistant", "content": resp_texto})
+                except Exception as e:
+                    erro_msg = f"❌ Erro ao consultar Cérebro Central: {e}"
+                    st.error(erro_msg)
+                    st.session_state.mensagens_chat.append({"role": "assistant", "content": erro_msg})
 
 # -------------------------------------------------------------
 # ABA 3: PROPOSTAS E ENGENHARIA
@@ -259,37 +268,23 @@ with tab_propostas:
     with col2:
         if btn_gerar_proposta and dados_cliente:
             with st.spinner("Executando Agentes de Proteção, Campo e Comercial..."):
-                acervo = carregar_acervo_tecnico("acervo")
-                estado: EstadoProjeto = {
-                    "dados_cliente": dados_cliente,
-                    "base_conhecimento": acervo,
-                    "diagnostico_tecnico": "",
-                    "planejamento_operacional": "",
-                    "ajustes_do_engenheiro": condicoes_comerciais if condicoes_comerciais else "Condições comerciais padrão da KR Engenharia com ART inclusa.",
-                    "proposta_final": ""
-                }
-                r_diag = agente_diagnostico(estado)
-                estado["diagnostico_tecnico"] = r_diag["diagnostico_tecnico"]
-                r_ops = agente_operacoes(estado)
-                estado["planejamento_operacional"] = r_ops["planejamento_operacional"]
-                r_com = agente_comercial(estado)
-                
-                os.makedirs("output", exist_ok=True)
-                with open("output/proposta_gerada.md", "w", encoding="utf-8") as f:
-                    f.write(r_com["proposta_final"])
-                renderizar_proposta()
-                
-                st.success("Proposta Técnica Gerada!")
-                st.markdown(r_com["proposta_final"])
-                
-                if os.path.exists("output/proposta_final.html"):
-                    with open("output/proposta_final.html", "r", encoding="utf-8") as f_html:
-                        st.download_button(
-                            label="📄 Baixar Documento Executivo (A4 / PDF)",
-                            data=f_html.read(),
-                            file_name="Proposta_KR_Engenharia.html",
-                            mime="text/html"
-                        )
+                try:
+                    estado_prop = executar_pipeline_proposta(dados_cliente, condicoes_comerciais)
+                    renderizar_proposta()
+                    
+                    st.success("Proposta Técnica Gerada!")
+                    st.markdown(estado_prop["proposta_final"])
+                    
+                    if os.path.exists("output/proposta_final.html"):
+                        with open("output/proposta_final.html", "r", encoding="utf-8") as f_html:
+                            st.download_button(
+                                label="📄 Baixar Documento Executivo (A4 / PDF)",
+                                data=f_html.read(),
+                                file_name="Proposta_KR_Engenharia.html",
+                                mime="text/html"
+                            )
+                except Exception as e:
+                    st.error(f"Erro ao gerar proposta técnica: {e}")
 
 # -------------------------------------------------------------
 # ABA 4: MARKETING B2B
@@ -300,12 +295,13 @@ with tab_marketing:
     if st.button("Gerar Artigo Técnico para LinkedIn", type="primary"):
         if tema_post:
             with st.spinner("Mariana Esteves estruturando post..."):
-                post = gerar_conteudo_linkedin(tema_post)
-                os.makedirs("output", exist_ok=True)
-                with open("output/post_linkedin.md", "w", encoding="utf-8") as f:
-                    f.write(post)
-                st.success("Artigo gerado com sucesso!")
-                st.markdown(post)
+                try:
+                    post = gerar_conteudo_linkedin(tema_post)
+                    salvar_markdown_saida("post_linkedin.md", post)
+                    st.success("Artigo gerado com sucesso!")
+                    st.markdown(post)
+                except Exception as e:
+                    st.error(f"Erro ao gerar artigo: {e}")
 
 # -------------------------------------------------------------
 # ABA 5: PROSPECÇÃO OUTBOUND
@@ -330,21 +326,19 @@ with tab_prospeccao:
     
     if btn_gerar_cadencia and empresa_alvo:
         with st.spinner("Lucas Campos mapeando decisores e estruturando abordagem..."):
-            cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
-            import urllib.parse
-            query_busca = urllib.parse.quote(f"{cargo_busca} {empresa_alvo}")
-            link_linkedin = f"https://www.linkedin.com/search/results/people/?keywords={query_busca}"
-            
-            os.makedirs("output", exist_ok=True)
-            with open("output/cadencia_prospeccao.md", "w", encoding="utf-8") as f:
-                f.write(cadencia)
-                
-            st.success("Estratégia de Abordagem Concluída!")
-            st.link_button(
-                label=f"🔗 Abrir Busca de {cargo_busca} na {empresa_alvo} no LinkedIn",
-                url=link_linkedin
-            )
-            st.markdown(cadencia)
+            try:
+                cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
+                link_linkedin = gerar_link_busca_linkedin(empresa_alvo, cargo_busca)
+                salvar_markdown_saida("cadencia_prospeccao.md", cadencia)
+                    
+                st.success("Estratégia de Abordagem Concluída!")
+                st.link_button(
+                    label=f"🔗 Abrir Busca de {cargo_busca} na {empresa_alvo} no LinkedIn",
+                    url=link_linkedin
+                )
+                st.markdown(cadencia)
+            except Exception as e:
+                st.error(f"Erro ao gerar prospecção: {e}")
 
 # -------------------------------------------------------------
 # ABA 6: AUDITORIA DE EDITAIS
@@ -355,12 +349,13 @@ with tab_edital:
     if st.button("Auditar Escopo e Gerar Lista de Desvios", type="primary"):
         if texto_tr:
             with st.spinner("Auditando conformidade contra o Acervo..."):
-                analise = analisar_especificacao_tecnica(texto_tr)
-                os.makedirs("output", exist_ok=True)
-                with open("output/analise_edital.md", "w", encoding="utf-8") as f:
-                    f.write(analise)
-                st.success("Auditoria concluída!")
-                st.markdown(analise)
+                try:
+                    analise = analisar_especificacao_tecnica(texto_tr)
+                    salvar_markdown_saida("analise_edital.md", analise)
+                    st.success("Auditoria concluída!")
+                    st.markdown(analise)
+                except Exception as e:
+                    st.error(f"Erro na auditoria de edital: {e}")
 
 # -------------------------------------------------------------
 # ABA 7: PÓS-COMISSIONAMENTO E ART
@@ -371,12 +366,13 @@ with tab_pos_obra:
     if st.button("Gerar Pacote de Encerramento e ART", type="primary"):
         if dados_conclusao:
             with st.spinner("Beatriz Silveira gerando índice de DataBook e minuta de ART..."):
-                pacote = gerar_pacote_encerramento(dados_conclusao)
-                os.makedirs("output", exist_ok=True)
-                with open("output/plano_pos_comissionamento.md", "w", encoding="utf-8") as f:
-                    f.write(pacote)
-                st.success("Pacote de encerramento gerado!")
-                st.markdown(pacote)
+                try:
+                    pacote = gerar_pacote_encerramento(dados_conclusao)
+                    salvar_markdown_saida("plano_pos_comissionamento.md", pacote)
+                    st.success("Pacote de encerramento gerado!")
+                    st.markdown(pacote)
+                except Exception as e:
+                    st.error(f"Erro ao gerar pacote de pós-obra: {e}")
 
 # -------------------------------------------------------------
 # ABA 8: BACKOFFICE E CONFORMIDADE HSE
@@ -387,9 +383,10 @@ with tab_backoffice:
     if st.button("Gerar Dossiê de Conformidade e Medição", type="primary"):
         if dados_backoffice:
             with st.spinner("Auditando documentação de segurança e faturamento..."):
-                dossie = processar_conformidade_backoffice(dados_backoffice)
-                os.makedirs("output", exist_ok=True)
-                with open("output/conformidade_backoffice.md", "w", encoding="utf-8") as f:
-                    f.write(dossie)
-                st.success("Dossiê gerado com sucesso!")
-                st.markdown(dossie)
+                try:
+                    dossie = processar_conformidade_backoffice(dados_backoffice)
+                    salvar_markdown_saida("conformidade_backoffice.md", dossie)
+                    st.success("Dossiê gerado com sucesso!")
+                    st.markdown(dossie)
+                except Exception as e:
+                    st.error(f"Erro ao gerar dossiê de backoffice: {e}")

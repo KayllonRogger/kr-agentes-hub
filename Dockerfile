@@ -22,5 +22,5 @@ COPY . .
 # Expõe a porta padrão do Streamlit
 EXPOSE 8501
 
-# Comando de inicialização otimizado para produção
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.enableCORS=false", "--server.enableXsrfProtection=false"]
+# Comando de inicialização com configurações de segurança adequadas
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.enableCORS=false"]
