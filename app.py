@@ -217,19 +217,49 @@ with tab_marketing:
                 st.success("Artigo gerado com sucesso!")
                 st.markdown(post)
 
-# ABA 4: PROSPECÇÃO OUTBOUND
+# ABA 4: PROSPECÇÃO OUTBOUND (COM BUSCA EM 1 CLIQUE)
 with tab_prospeccao:
-    st.subheader("Inteligência Comercial & Abordagem B2B")
-    perfil_prospeccao = st.text_area("Perfil da Empresa-Alvo ou Segmento Industrial:", height=150, placeholder="Ex.: Grandes EPCistas de subestações de 138/230 kV para parques solares.")
-    if st.button("Gerar Mapeamento e Cadência de 3 Etapas", type="primary"):
-        if perfil_prospeccao:
-            with st.spinner("Mapeando decisores e gerando mensagens..."):
-                cadencia = gerar_cadencia_prospeccao(perfil_prospeccao)
-                os.makedirs("output", exist_ok=True)
-                with open("output/cadencia_prospeccao.md", "w", encoding="utf-8") as f:
-                    f.write(cadencia)
-                st.success("Estratégia outbound gerada!")
-                st.markdown(cadencia)
+    st.subheader("Inteligência Comercial & Abordagem B2B no LinkedIn")
+    st.write("Mapeie decisores em indústrias ou EPCistas e gere mensagens técnicas prontas com link de busca direta.")
+    
+    col_alvo1, col_alvo2 = st.columns(2)
+    with col_alvo1:
+        empresa_alvo = st.text_input("Empresa-Alvo / Planta Industrial:", placeholder="Ex: Mineração Vale - Carajás ou EPCista Andrade Gutierrez")
+    with col_alvo2:
+        servico_foco = st.text_input("Serviço em Foco:", placeholder="Ex: Estudos no ETAP, Comissionamento TAC ou Redes IEC 61850")
+        
+    cargo_busca = st.selectbox("Cargo do Decisor a Buscar no LinkedIn:", [
+        "Gerente de Manutenção Elétrica",
+        "Coordenador de Comissionamento",
+        "Gerente de Engenharia",
+        "Engenheiro Eletricista de Proteção",
+        "Diretor de Operações"
+    ])
+    
+    btn_gerar_cadencia = st.button("Gerar Abordagem e Link de Busca", type="primary")
+    
+    if btn_gerar_cadencia and empresa_alvo:
+        with st.spinner("Mapeando decisores e estruturando abordagem..."):
+            cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
+            
+            # Gera o link direto no LinkedIn
+            import urllib.parse
+            query_busca = urllib.parse.quote(f"{cargo_busca} {empresa_alvo}")
+            link_linkedin = f"https://www.linkedin.com/search/results/people/?keywords={query_busca}"
+            
+            os.makedirs("output", exist_ok=True)
+            with open("output/cadencia_prospeccao.md", "w", encoding="utf-8") as f:
+                f.write(cadencia)
+                
+            st.success("Estratégia de Abordagem Concluída!")
+            
+            # Botão de Ação Direta com Link do LinkedIn
+            st.link_button(
+                label=f"🔗 Abrir Busca de {cargo_busca} na {empresa_alvo} no LinkedIn",
+                url=link_linkedin
+            )
+            
+            st.markdown(cadencia)
 
 # ABA 5: AUDITORIA DE EDITAIS
 with tab_edital:

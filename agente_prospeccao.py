@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -16,51 +17,56 @@ def extrair_texto(resposta) -> str:
         return resposta.content[0].get('text', '')
     return str(resposta.content)
 
-PROMPT_PROSPECCAO = """Você é o Especialista em Inteligência Comercial e Prospecção B2B da KR Engenharia.
+PROMPT_PROSPECCAO_1CLIQUE = """Você é o Especialista em Inteligência Comercial e Prospecção B2B da KR Engenharia.
 Responsável Técnico: Eng. Kayllon Rogger Nunes (CREA-MG nº 141854962-2).
-Posicionamento: Boutique Técnica de Engenharia em Sistemas de Potência, Proteção (ETAP), Automação de Subestações (SAS / IEC 61850) e Comissionamento (TAF/TAC).
+Posicionamento: Boutique Técnica em Sistemas de Potência, Proteção (ETAP), Automação de Subestações (SAS / IEC 61850) e Comissionamento (TAF/TAC).
 
 SUA MISSÃO:
-Criar uma estratégia de abordagem outbound altamente personalizada para uma empresa-alvo, falando a linguagem de engenheiro para engenheiro (zero clichês de vendas corporativas).
+Receber o nome de uma empresa-alvo e a especialidade desejada, e estruturar uma abordagem técnica de alto impacto pronta para envio no LinkedIn.
 
-ESTRUTURA DA RESPOSTA:
-1. MAPEAMENTO DO DECISOR: Cargo ideal a abordar na empresa (ex.: Gerente de Manutenção, Coordenador de Comissionamento, Gerente de Engenharia).
-2. O GARGALO TÉCNICO: Qual a principal dor desse decisor que a KR Engenharia resolve (ex.: risco de estouro de janela de parada, falta de braço técnico para estudos no ETAP, erros de parametrização em campo).
-3. CADÊNCIA DE CONTATO (3 ETAPAS):
-   - Mensagem 1 (LinkedIn - Quebra-gelo Técnico): Apresentação focada em desafios técnicos comuns do segmento dele.
-   - Mensagem 2 (E-mail - Prova Técnica): Citação de case real relevante da KR Engenharia (ex: projetos offshore de 400 kV ou retrofits industriais em 230 kV).
-   - Mensagem 3 (Follow-up de Diagnóstico): Proposta de reunião rápida de 15 minutos para avaliar o diagrama unifilar ou a próxima janela de parada da planta.
+ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
+1. DECISOR RECOMENDADO:
+   - Cargo ideal exato (ex: Gerente de Manutenção Elétrica, Coordenador de Comissionamento ou Gerente de Engenharia).
+
+2. NOTA DE CONEXÃO NO LINKEDIN (MÁXIMO 280 CARACTERES):
+   - Mensagem ultracurta para o convite de conexão (limite de 300 caracteres do LinkedIn). Direta, sem bajulação, focada em conexão técnica entre especialistas.
+
+3. MENSAGEM PRINCIPAL DE ABORDAGEM (INMAIL OU E-MAIL CORPORATIVO):
+   - Parágrafo 1: O gargalo operacional comum (ex: desligamentos indevidos por descoordenação, validação de intertravamentos GOOSE, prazos críticos de parada).
+   - Parágrafo 2: O diferencial da KR Engenharia (pré-validação em bancada para redução de downtime em até 40% e vivência em projetos de grande porte como Baltic Power 400kV e retrofits na Vale/Gerdau).
+   - Parágrafo 3: Proposta de conversa rápida de 15 minutos ou envio do diagrama unifilar para diagnóstico preliminar.
 """
 
-def gerar_cadencia_prospeccao(perfil_empresa: str) -> str:
-    print(f"\n🎯 [Agente de Prospecção] Mapeando decisores e gerando cadência técnica...")
+def gerar_cadencia_prospeccao(perfil_empresa: str, especialidade: str = "") -> str:
+    print(f"\n🎯 [Agente de Prospecção] Mapeando abordagem para {perfil_empresa}...")
     
+    contexto = f"EMPRESA-ALVO: {perfil_empresa}\n"
+    if especialidade:
+        contexto += f"SERVIÇO / DISCIPLINA EM FOCO: {especialidade}\n"
+        
     resp = llm.invoke([
-        SystemMessage(content=PROMPT_PROSPECCAO),
-        HumanMessage(content=f"Empresa ou Segmento Alvo:\n{perfil_empresa}")
+        SystemMessage(content=PROMPT_PROSPECCAO_1CLIQUE),
+        HumanMessage(content=contexto)
     ])
     
     return extrair_texto(resp)
 
-if __name__ == "__main__":
-    exemplo_alvo = """
-    Segmento: Grandes EPCistas e Integradores de Infraestrutura de Energia
-    Alvo Típico: Empresas que executam obras de subestações de 138/230 kV para linhas de transmissão ou conexão de parques renováveis.
-    Objetivo da Abordagem: Apresentar a KR Engenharia como braço técnico externo especialista para estudos de seletividade no ETAP e validação de redes IEC 61850 em fábrica (TAF).
-    """
+def gerar_link_busca_linkedin(empresa: str, cargo: str = "Manutenção Elétrica") -> str:
+    """Gera o link de busca direta de pessoas no LinkedIn com filtros pré-aplicados."""
+    query = f"{cargo} {empresa}"
+    query_encoded = urllib.parse.quote(query)
+    return f"https://www.linkedin.com/search/results/people/?keywords={query_encoded}"
 
+if __name__ == "__main__":
+    empresa = "Gerdau Aços Longos - Usina Ouro Branco"
+    servico = "Estudos de Coordenação no ETAP e Parametrização de Relés SIPROTEC 5"
+    
     print("==========================================================")
-    print("🚀 GERADOR DE CADÊNCIA OUTBOUND B2B - KR ENGENHARIA")
+    print("🚀 PROSPECÇÃO B2B 1-CLIQUE - KR ENGENHARIA")
     print("==========================================================")
     
-    cadencia = gerar_cadencia_prospeccao(exemplo_alvo)
+    resultado = gerar_cadencia_prospeccao(empresa, servico)
+    link = gerar_link_busca_linkedin("Gerdau", "Gerente Manutenção Elétrica")
     
-    os.makedirs("output", exist_ok=True)
-    caminho_saida = "output/cadencia_prospeccao.md"
-    with open(caminho_saida, "w", encoding="utf-8") as f:
-        f.write(cadencia)
-        
-    print("\n" + "="*60)
-    print(f"✅ ESTRATÉGIA DE PROSPECÇÃO GERADA EM: {caminho_saida}")
-    print("="*60 + "\n")
-    print(cadencia)
+    print(resultado)
+    print(f"\n🔗 Link de Busca Direto: {link}")
