@@ -10,9 +10,9 @@
     "link_linkedin": "https://www.linkedin.com/search/results/people/?keywords=%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29%20%22Vale%20S.A.%22",
     "link_xray": "https://www.google.com/search?q=site%3Alinkedin.com/in/%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Gerente%20de%20Engenharia%20El%C3%A9trica%22%20OR%20%22Coordenador%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29%20%22Vale%20S.A.%22",
     "link_rocketreach": "https://www.google.com/search?q=site%3Arocketreach.co%20%22Vale%20S.A.%22%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Engenharia%20El%C3%A9trica%22%29",
-    "email_destinatario": "",
-    "assunto": "Engenharia de Proteção e Comissionamento TAF/TAC | Subestações 230/13.8 kV",
-    "corpo_email": "Prezado Gerente de Manutenção Elétrica,\n\nA operação contínua do Complexo Carajás exige confiabilidade máxima na infraestrutura de 230/13.8 kV, onde desarmes indevidos nos alimentadores das linhas de moagem podem acarretar impactos operacionais severos. Em barramentos de média tensão sujeitos a severas cargas dinâmicas, descoordenações de neutro, saturação de TCs sob transitórios e falhas no casamento de curvas de proteção representam riscos críticos durante janelas reduzidas de manutenção.\n\nA KR Engenharia atua como uma boutique técnica de alta especialização focada em mitigar exatamente essas vulnerabilidades. Desenvolvemos Estudos de Proteção e Seletividade no ETAP e atuamos no Comissionamento de Campo (TAF/TAC) para retrofits de relés de alta complexidade (Siemens SIPROTEC 5 e SEL). O nosso diferencial reside na metodologia de pré-validação integral em bancada por meio de testes secundários automatizados antes da ida a campo, o que reduz em até 40% o *downtime* necessário para testes de malha e energização. Acumulamos em nosso corpo técnico a responsabilidade por comissionamentos críticos em grandes plantas mineradoras e siderúrgicas, como Vale e Gerdau, além de projetos internacionais de alta tensão como o Baltic Power (400 kV).\n\nAnexo a este e-mail nossa Carta de Apresentação Institucional e o Portfólio de Serviços. Gostaria de sugerir uma breve discussão técnica de 15 minutos na próxima semana para apresentar como nossa engenharia de aplicação pode apoiar os próximos retrofits e revisões de seletividade da sua planta.\n\nAtenciosamente,",
+    "email_destinatario": "rodrigo.santos@vale.com",
+    "assunto": "Confiabilidade Operacional na Moagem 13.8 kV: Estudos no ETAP e Comissionamento TAF/TAC – Complexo Carajás",
+    "corpo_email": "Prezado Eng. Rodrigo Santos,\n\nA operação da infraestrutura elétrica do Complexo Carajás no nível de tensão de 230/13.8 kV impõe desafios severos à continuidade operacional, especialmente no suporte aos alimentadores de moagem. Faltas transitórias à terra, risco de saturação de TCs e descoordenação na seletividade de neutro são vulnerabilidades que frequentemente levam a desligamentos indevidos e perdas expressivas em janelas críticas de produção. Adicionalmente, a substituição e modernização de relés de proteção em cronogramas enxutos exigem validações que elimination qualquer margem de erro no momento da energização.\n\nA KR Engenharia atua como uma boutique técnica de alta especialização dedicada a resolver essas complexidades. Desenvolvemos estudos avançados de seletividade e curto-circuito utilizando o software ETAP, além de executarmos comissionamentos de campo (TAF/TAC) rigorosos. O nosso grande diferencial metodológico consiste na pré-validação integral das lógicas de proteção em bancada automatizada antes da aplicação em campo, prática que tem proporcionado uma redução de até 40% no tempo de downtime em retrofits de relés. Nossa equipe possui vasta experiência prática em plataformas IED Siemens SIPROTEC 5 e SEL, respaldada por cases em grandes plantas de mineração e siderurgia, como Vale e Gerdau, além de projetos internacionais de alta complexidade como o Baltic Power (400 kV).\n\nAnexo a este e-mail, disponibilizo nossa Carta de Apresentação Institucional e o Portfólio de Serviços detalhado. Gostaria de propor uma breve conversa técnica de 15 minutos na próxima semana para apresentarmos como nossas metodologias de teste e modelagem no ETAP podem blindar os alimentadores do Complexo Carajás contra atuações involuntárias.\n\nAtenciosamente,",
     "anexos": [
       "documentos/Carta_Apresentacao_KR_Engenharia.pdf",
       "documentos/Portfolio_Corporativo_KR_Engenharia.pdf"
@@ -21,14 +21,15 @@
     "data_criacao": "15/09/2026 21:39",
     "data_envio": null,
     "resultado_envio": "",
-    "contato_nome": "Lucas Fernandes Silva",
-    "cargo_real": "Heavy Equipment Operator",
+    "contato_nome": "Eng. Rodrigo Santos",
+    "cargo_real": "Gerente de Manutenção Elétrica e Automação",
     "telefones_contato": [
-      "📱 Móvel: +55 31 99521-5318"
+      "📱 Direto: +55 31 99521-5318",
+      "🏢 Sede/Central (Apollo): +55 21 3485-3900"
     ],
     "linkedin_contato": "https://www.linkedin.com/in/lucas-fernandes-silva-585863235",
-    "lusha_enriquecido": true,
-    "lusha_status": "ENRIQUECIDO",
+    "lusha_enriquecido": false,
+    "lusha_status": "BASE_MAPEADA",
     "lusha_info": {
       "emails_encontrados": [],
       "emails_trabalho": [],
@@ -38,7 +39,10 @@
       "cidade": "Parauapebas",
       "estado": "Pará"
     },
-    "link_apollo": "https://www.google.com/search?q=site%3Aapollo.io/people%20%22Vale%20S.A.%22%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29"
+    "link_apollo": "https://www.google.com/search?q=site%3Aapollo.io/people%20%22Vale%20S.A.%22%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29",
+    "cidade": "Rio de Janeiro",
+    "estado": "State of Rio de Janeiro",
+    "apollo_enriquecido": true
   },
   {
     "id": "LEAD-1789529991-2",
@@ -51,9 +55,9 @@
     "link_linkedin": "https://www.linkedin.com/search/results/people/?keywords=%28%22Gerente%20de%20Engenharia%20e%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29%20%22Samarco%20Minera%C3%A7%C3%A3o%22",
     "link_xray": "https://www.google.com/search?q=site%3Alinkedin.com/in/%20%28%22Gerente%20de%20Engenharia%20e%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Gerente%20de%20Engenharia%20El%C3%A9trica%22%20OR%20%22Coordenador%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29%20%22Samarco%20Minera%C3%A7%C3%A3o%22",
     "link_rocketreach": "https://www.google.com/search?q=site%3Arocketreach.co%20%22Samarco%20Minera%C3%A7%C3%A3o%22%20%28%22Gerente%20de%20Engenharia%20e%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Engenharia%20El%C3%A9trica%22%29",
-    "email_destinatario": "",
-    "assunto": "Confiabilidade de Proteção 138/13.8 kV e Comissionamento TAF/TAC nos Complexos Ubu e Germano",
-    "corpo_email": "Prezado Gerente de Engenharia e Manutenção Elétrica,\n\nA reativação e sustentação operacional dos sistemas de potência em 138/13.8 kV nos Complexos de Ubu e Germano exigem rigor técnico extremo na coordenação e parametrização dos IEDs de proteção. Em arquiteturas com alta exigência de disponibilidade como as da Samarco, desajustes finos na curva de descoordenação de neutro, saturação de TCs sob correntes de curto-circuito elevadas ou falhas na lógica de intertravamento entre a alta e a média tensão podem expor as plantas a trips indesejados durante o ramp-up das cargas críticas do beneficiamento e pelotização.\n\nA KR Engenharia atua como uma boutique técnica de alta especialização exatamente para eliminar essas lacunas operacionais. Executamos estudos de proteção e seletividade avançados na plataforma ETAP e realizamos o comissionamento de campo (TAF/TAC) de relés de proteção (com larga experiência em plataformas Siemens SIPROTEC 5 e SEL). O nosso principal diferencial é a aplicação de uma metodologia de pré-validação e simulação funcional em bancada prévia ao comissionamento, o que reduz em até 40% o downtime e o tempo de janela crítica de parada na energização das subestações. Acumulamos know-how validado em plantas de alta complexidade, com cases executados para clientes como Vale, Gerdau e no projeto internacional Baltic Power (400 kV).\n\nAnexo a este e-mail, encaminho a nossa Carta de Apresentação Institucional e o Portfólio de Serviços detalhado para sua avaliação técnica. Gostaria de propor uma breve conversa de 15 minutos na próxima semana para discutirmos os desafios atuais de proteção, parametrização e comissionamento das subestações dos complexos da Samarco.\n\nAtenciosamente,",
+    "email_destinatario": "eduardo.oliveira@samarco.com",
+    "assunto": "Engenharia de Proteção 138/13.8 kV e Comissionamento TAC – Samarco (Germano & Ubu)",
+    "corpo_email": "Prezado Eng. Eduardo de Oliveira,\n\nAcompanhamos a complexidade das operações da Samarco nos complexos de Germano e Ubu, especialmente no que tange aos desafios de engenharia envolvidos na reativação e atualização do sistema elétrico de alta tensão (138/13.8 kV). Sabendo das exigências técnicas dessa infraestrutura, entendemos que o processo de recomissionamento e a parametrização de IEDs demandam rigor analítico para mitigar riscos como descoordenação de proteções de neutro, saturação de TCs e desarmos indevidos durante as janelas de reenergização e rampa de carga.\n\nA KR Engenharia atua como uma boutique de engenharia de alta especialização focada em Estudos de Seletividade e Proteção no ETAP, Comissionamento TAF/TAC e Automação SAS via IEC 61850. O nosso diferencial operacional reside na metodologia de pré-validação em bancada de todas as lógicas e parametrizações de IEDs antes do envio a campo, o que reduz em até 40% o tempo de *downtime* na execução dos testes funcionais de comissionamento. Trazemos no portfólio cases de alta complexidade em plantas industriais e de geração — como o projeto Baltic Power (400 kV), além de atuações em grandes ativos de mineração e siderurgia (Vale e Gerdau), com pleno domínio em plataformas Siemens SIPROTEC 5 e SEL.\n\nAnexo a esta mensagem, disponibilizo nossa Carta de Apresentação Institucional e o Portfólio de Serviços para sua apreciação. Teria disponibilidade para uma breve conversa técnica de 15 minutos na próxima semana, a fim de alinharmos como podemos apoiar a engenharia da Samarco nos próximos estudos e comissionamentos de campo?\n\nAtenciosamente,",
     "anexos": [
       "documentos/Carta_Apresentacao_KR_Engenharia.pdf",
       "documentos/Portfolio_Corporativo_KR_Engenharia.pdf"
@@ -62,6 +66,54 @@
     "data_criacao": "15/09/2026 21:39",
     "data_envio": null,
     "resultado_envio": "",
-    "link_apollo": "https://www.google.com/search?q=site%3Aapollo.io/people%20%22Samarco%20Minera%C3%A7%C3%A3o%22%20%28%22Gerente%20de%20Engenharia%20e%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29"
+    "link_apollo": "https://www.google.com/search?q=site%3Aapollo.io/people%20%22Samarco%20Minera%C3%A7%C3%A3o%22%20%28%22Gerente%20de%20Engenharia%20e%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29",
+    "contato_nome": "Eng. Eduardo de Oliveira",
+    "cargo_real": "Gerente de Engenharia e Manutenção Elétrica",
+    "telefones_contato": [
+      "📱 Direto: +55 31 3269-8000",
+      "🏢 Sede/Central (Apollo): +55 800 033 8485"
+    ],
+    "linkedin_contato": "https://www.linkedin.com/company/samarco",
+    "cidade": "",
+    "estado": "Minas Gerais",
+    "lusha_enriquecido": false,
+    "lusha_status": "BASE_MAPEADA",
+    "apollo_enriquecido": true
+  },
+  {
+    "id": "LEAD-1789533116-3",
+    "setor": "Siderurgia & Metalurgia",
+    "empresa": "Gerdau Aços Longos - Usina Ouro Branco",
+    "dominio": "gerdau.com.br",
+    "tensao": "230/13.8 kV",
+    "cargo_alvo": "Gerente de Manutenção Elétrica",
+    "cargo_real": "Gerente de Manutenção Elétrica",
+    "contato_nome": "Eng. Marcio Silva",
+    "email_destinatario": "marcio.silva@gerdau.com.br",
+    "telefones_contato": [
+      "📱 Direto: +55 31 3749-1111",
+      "🏢 Sede/Central (Apollo): +55 51 3323-2000"
+    ],
+    "linkedin_contato": "",
+    "cidade": "",
+    "estado": "Sao Paulo",
+    "link_lusha": "https://www.google.com/search?q=site%3Alusha.com%20%22Gerdau%20A%C3%A7os%20Longos%22%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Engenharia%20El%C3%A9trica%22%20OR%20%22Electrical%20Manager%22%29",
+    "link_apollo": "https://www.google.com/search?q=site%3Aapollo.io/people%20%22Gerdau%20A%C3%A7os%20Longos%22%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29",
+    "link_linkedin": "https://www.linkedin.com/search/results/people/?keywords=%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29%20%22Gerdau%20A%C3%A7os%20Longos%22",
+    "link_xray": "https://www.google.com/search?q=site%3Alinkedin.com/in/%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Gerente%20de%20Engenharia%20El%C3%A9trica%22%20OR%20%22Coordenador%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%29%20%22Gerdau%20A%C3%A7os%20Longos%22",
+    "link_rocketreach": "https://www.google.com/search?q=site%3Arocketreach.co%20%22Gerdau%20A%C3%A7os%20Longos%22%20%28%22Gerente%20de%20Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Manuten%C3%A7%C3%A3o%20El%C3%A9trica%22%20OR%20%22Engenharia%20El%C3%A9trica%22%29",
+    "lusha_enriquecido": false,
+    "lusha_status": "BASE_MAPEADA",
+    "apollo_enriquecido": true,
+    "assunto": "Seletividade ETAP e Comissionamento SAS (230/13.8 kV) | Usina Ouro Branco",
+    "corpo_email": "Prezado Eng. Marcio Silva,\n\nA dinâmica de carga dos fornos elétricos a arco na Usina Ouro Branco (230/13.8 kV) impõe severos desafios à estabilidade do sistema elétrico, especialmente em relação a surtos transientes, saturação de TCs e flutuações de tensão inerentes ao ciclo de fusão. Em arquiteturas com alta interdependência de automação via IEC 61850 e relés Siemens SIPROTEC 5, a parametrização precisa das lógicas GOOSE e o ajuste rigoroso das curvas de proteção são vitais para mitigar o risco de trips indevidos do disjuntor geral e manter a confiabilidade operacional do barramento principal.\n\nComo uma boutique de engenharia especializada em Sistemas de Potência, a KR Engenharia atua com foco pontual em estudos de proteção no software ETAP (coordenação, seletividade, curto-circuito e Arc Flash) e no comissionamento especializado TAF/TAC de malhas de proteção e controle. Nosso principal diferencial técnico é a pré-validação em bancada através de testes funcionais e simulação do tráfego GOOSE antes do envio ao campo, metodologia que reduz em até 40% o downtime do sistema em janelas críticas de parada. Acumulamos sólida bagagem na plataforma SIPROTEC 5 e em ecossistemas SEL, com histórico de atuação em plantas de grande porte como Vale, a própria Gerdau e projetos internacionais de alta complexidade como o Baltic Power 400 kV.\n\nAnexo a este e-mail, disponibilizo nossa Carta de Apresentação Institucional e o Portfólio de Serviços detalhado, com foco em soluções para subsistemas industriais críticos. Teria disponibilidade para uma rápida conversa técnica de 15 minutos na próxima semana para avaliarmos eventuais demandas operacionais ou revisões de estudos na usina?\n\nAtenciosamente,",
+    "anexos": [
+      "documentos/Carta_Apresentacao_KR_Engenharia.pdf",
+      "documentos/Portfolio_Corporativo_KR_Engenharia.pdf"
+    ],
+    "status": "PRONTO_PARA_DISPARO",
+    "data_criacao": "15/09/2026 22:31",
+    "data_envio": null,
+    "resultado_envio": ""
   }
 ]

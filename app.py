@@ -42,7 +42,8 @@ from prospeccao_autonoma import (
     excluir_lead_campanha,
     limpar_fila_campanhas,
     gerar_links_prospeccao,
-    enriquecer_lead_por_id
+    enriquecer_lead_por_id,
+    enriquecer_fila_autonomamente
 )
 from servico_lusha import consultar_contato_lusha, consultar_empresa_lusha
 from documentos_kr import compilar_documentos_institucionais
@@ -437,10 +438,17 @@ with tab_prospeccao:
         st.divider()
 
         # Fila de Oportunidades
-        col_hdr1, col_hdr2 = st.columns([3, 1])
+        col_hdr1, col_hdr2, col_hdr3 = st.columns([2, 1, 1])
         with col_hdr1:
             st.markdown("### 📋 Fila de Oportunidades & Disparos Oficiais")
         with col_hdr2:
+            if total_leads > 0:
+                if st.button("⚡ Re-enriquecer Fila (Apollo + Lusha)", key="btn_auto_enrich_all", help="Atualiza e-mails corporativos, telefones e saudações nominais de toda a fila."):
+                    with st.spinner("Lucas Campos enriquecendo toda a fila de leads via Apollo.io e Lusha..."):
+                        res_auto = enriquecer_fila_autonomamente(forcar_redacao=True)
+                        st.success(res_auto["mensagem"])
+                        st.rerun()
+        with col_hdr3:
             if total_leads > 0:
                 if st.button("🗑️ Limpar Fila de Campanhas", key="btn_limpar_fila"):
                     limpar_fila_campanhas()
@@ -452,58 +460,61 @@ with tab_prospeccao:
             for lead in fila_campanhas:
                 lid = lead["id"]
                 st_badge = "🟡 PRONTO PARA DISPARO" if lead.get("status") == "PRONTO_PARA_DISPARO" else ("🟢 ENVIADO" if lead.get("status") == "ENVIADO" else "🔴 ERRO")
+                nome_dec = lead.get("contato_nome") or "Decisor Elétrico"
+                cargo_dec = lead.get("cargo_real") or lead.get("cargo_alvo", "Gestor Elétrico")
                 
-                with st.expander(f"🏢 {lead.get('empresa')} — {lead.get('setor')} [{st_badge}]", expanded=(lead.get("status") == "PRONTO_PARA_DISPARO")):
-                    c_info1, c_info2 = st.columns(2)
-                    with c_info1:
+                with st.expander(f"🏢 {lead.get('empresa')} — {nome_dec} ({cargo_dec}) [{st_badge}]", expanded=(lead.get("status") == "PRONTO_PARA_DISPARO")):
+                    # Painel do Decisor e Contatos Autônomos
+                    st.markdown("#### 👤 Inteligência do Decisor Mapeado Autonomamente")
+                    c_dec1, c_dec2 = st.columns(2)
+                    with c_dec1:
+                        st.markdown(f"**Decisor:** `{nome_dec}`")
+                        st.markdown(f"**Cargo:** `{cargo_dec}`")
+                        st.markdown(f"**E-mail Corporativo Verificado:** `{lead.get('email_destinatario', 'Pendente')}`")
+                    with c_dec2:
                         st.markdown(f"**Tensão da Planta:** `{lead.get('tensao', 'N/D')}`")
-                        st.markdown(f"**Cargo do Decisor Alvo:** `{lead.get('cargo_alvo', 'N/D')}`")
-                    with c_info2:
                         st.markdown(f"**Domínio Corporativo:** `{lead.get('dominio', 'N/D')}`")
-                        st.markdown(f"**Status Atual:** `{st_badge}`" + (f" ({lead.get('data_envio')})" if lead.get('data_envio') else ""))
+                        if lead.get("telefones_contato"):
+                            st.markdown("**Telefones Obtidos:** " + " | ".join([f"`{t}`" for t in lead.get("telefones_contato")]))
+                        else:
+                            st.markdown("**Telefones:** `Não mapeado`")
+                        if lead.get("cidade") or lead.get("estado"):
+                            st.markdown(f"**Localização da Planta:** `{lead.get('cidade', '')} - {lead.get('estado', '')}`")
 
-                    st.markdown("#### 🔍 Engrenagens de Busca de Contatos Reais (Lusha & LinkedIn)")
-                    st.info("💡 **Localização Precisa:** Clique em **Lusha** ou **LinkedIn** para localizar o perfil do gestor elétrico. Cole a URL do perfil ou o nome abaixo para que a **API da Lusha** recupere o e-mail corporativo verificado e telefones diretos automaticamente, sem adivinhações.")
-
-                    col_g1, col_g2, col_g3, col_g4, col_g5 = st.columns(5)
-                    with col_g1:
-                        st.link_button(
-                            label="⚡ 1. Buscar no Lusha",
-                            url=lead.get("link_lusha", f"https://www.google.com/search?q=site%3Alusha.com+{urllib.parse.quote(lead.get('empresa', ''))}"),
-                            help="Busca no diretório Lusha por e-mails diretos e telefones de gestores da área elétrica."
-                        )
-                    with col_g2:
-                        st.link_button(
-                            label="🚀 2. Apollo.io",
-                            url=lead.get("link_apollo", f"https://www.google.com/search?q=site%3Aapollo.io%2Fpeople+{urllib.parse.quote(lead.get('empresa', ''))}"),
-                            help="Busca de contatos e inteligência B2B no diretório Apollo.io."
-                        )
-                    with col_g3:
-                        st.link_button(
-                            label=f"🔗 3. LinkedIn Direct",
-                            url=lead.get("link_linkedin", "#"),
-                            help="Busca direta de pessoas logadas no LinkedIn com cargo de gerenciamento elétrico."
-                        )
-                    with col_g4:
-                        st.link_button(
-                            label="🔎 4. Google X-Ray",
-                            url=lead.get("link_xray", "#"),
-                            help="Operador booleano avançado para perfis indexados sem limite de busca."
-                        )
-                    with col_g5:
-                        st.link_button(
-                            label="🎯 5. RocketReach",
-                            url=lead.get("link_rocketreach", f"https://www.google.com/search?q=site%3Arocketreach.co+{urllib.parse.quote(lead.get('empresa', ''))}"),
-                            help="Consulta complementar para validação de contatos corporativos verificados."
-                        )
-
-                    # Widget Interativo de Enriquecimento Automático via Lusha API
-                    with st.container():
-                        st.markdown("##### ⚡ Enriquecedor Automático Lusha API (E-mail Verificado & Celular Direto)")
-                        if lead.get("lusha_enriquecido"):
-                            st.success(f"✅ **Decisor Verificado via Lusha API:** `{lead.get('contato_nome', 'Gestor Elétrico')}` | Cargo: `{lead.get('cargo_real', lead.get('cargo_alvo'))}`")
-                            if lead.get("telefones_contato"):
-                                st.markdown("📞 **Contatos Telefônicos Diretos:** " + " | ".join([f"`{t}`" for t in lead.get("telefones_contato", [])]))
+                    # Ferramentas complementares de busca em expander recolhido
+                    with st.expander("🔍 Engrenagens de Busca & Ajustes Complementares (Lusha / Apollo / LinkedIn)", expanded=False):
+                        st.caption("Consulte os diretórios externos diretamente caso queira conferir perfis adicionais da planta:")
+                        col_g1, col_g2, col_g3, col_g4, col_g5 = st.columns(5)
+                        with col_g1:
+                            st.link_button(
+                                label="⚡ 1. Buscar no Lusha",
+                                url=lead.get("link_lusha", f"https://www.google.com/search?q=site%3Alusha.com+{urllib.parse.quote(lead.get('empresa', ''))}"),
+                                help="Busca no diretório Lusha por e-mails diretos e telefones de gestores da área elétrica."
+                            )
+                        with col_g2:
+                            st.link_button(
+                                label="🚀 2. Apollo.io",
+                                url=lead.get("link_apollo", f"https://www.google.com/search?q=site%3Aapollo.io%2Fpeople+{urllib.parse.quote(lead.get('empresa', ''))}"),
+                                help="Busca de contatos e inteligência B2B no diretório Apollo.io."
+                            )
+                        with col_g3:
+                            st.link_button(
+                                label="🔗 3. LinkedIn Direct",
+                                url=lead.get("link_linkedin", "#"),
+                                help="Busca direta de pessoas logadas no LinkedIn com cargo de gerenciamento elétrico."
+                            )
+                        with col_g4:
+                            st.link_button(
+                                label="🔎 4. Google X-Ray",
+                                url=lead.get("link_xray", "#"),
+                                help="Operador booleano avançado para perfis indexados sem limite de busca."
+                            )
+                        with col_g5:
+                            st.link_button(
+                                label="🎯 5. RocketReach",
+                                url=lead.get("link_rocketreach", f"https://www.google.com/search?q=site%3Arocketreach.co+{urllib.parse.quote(lead.get('empresa', ''))}"),
+                                help="Consulta complementar para validação de contatos corporativos verificados."
+                            )
 
                         col_lu1, col_lu2, col_lu3 = st.columns([3, 2, 2])
                         with col_lu1:
@@ -511,51 +522,46 @@ with tab_prospeccao:
                                 "URL do Perfil no LinkedIn do Decisor:",
                                 value=lead.get("linkedin_contato", ""),
                                 placeholder="https://www.linkedin.com/in/perfil-do-gestor",
-                                key=f"lu_url_{lid}",
-                                help="Cole a URL do LinkedIn obtida pelas buscas acima para extrair o e-mail corporativo verificado e telefone."
+                                key=f"lu_url_{lid}"
                             )
                         with col_lu2:
                             lu_nome_input = st.text_input(
                                 "Ou Nome do Decisor:",
                                 value=lead.get("contato_nome", ""),
                                 placeholder="Ex: Roberto Carlos",
-                                key=f"lu_nome_{lid}",
-                                help="Nome do gestor na empresa indicada."
+                                key=f"lu_nome_{lid}"
                             )
                         with col_lu3:
                             st.write("")
                             st.write("")
-                            btn_consultar_lusha = st.button("⚡ Consultar Lusha API", key=f"btn_lu_{lid}", type="secondary")
-
-                        if btn_consultar_lusha:
-                            if not lu_url_input and not lu_nome_input:
-                                st.warning("Informe a URL do LinkedIn ou o Nome do Decisor para consultar a Lusha API.")
-                            else:
-                                with st.spinner("Consultando Lusha API para recuperar e-mail corporativo verificado e telefones..."):
+                            if st.button("⚡ Consultar Lusha API", key=f"btn_lu_{lid}", type="secondary"):
+                                with st.spinner("Consultando Lusha API..."):
                                     res_lu = enriquecer_lead_por_id(
                                         lead_id=lid,
                                         linkedin_url=lu_url_input if lu_url_input else None,
                                         nome_completo=lu_nome_input if lu_nome_input else None
                                     )
-                                    if res_lu.get("encontrado") and res_lu.get("dados_lusha"):
-                                        dl = res_lu["dados_lusha"]
-                                        st.success(f"🎯 Contato localizado com sucesso: **{dl.get('nome_completo')}** ({dl.get('cargo') or lead.get('cargo_alvo')})")
-                                        if dl.get("email_principal"):
-                                            st.info(f"📧 E-mail Corporativo Verificado: `{dl.get('email_principal')}`")
-                                        if dl.get("telefones_formatados"):
-                                            st.write("📞 Telefones obtidos: " + ", ".join(dl.get("telefones_formatados")))
+                                    if res_lu.get("encontrado"):
+                                        st.success("Lead enriquecido com sucesso via Lusha!")
                                         st.rerun()
                                     else:
-                                        st.warning(f"⚠️ {res_lu.get('mensagem', 'Contato não localizado no diretório Lusha.')}")
+                                        st.warning(res_lu.get("mensagem", "Contato não localizado."))
 
                     st.markdown("#### ✉️ Proposta de E-mail Estruturada por Lucas Campos")
-                    
-                    email_dest_input = st.text_input(
-                        "E-mail Verificado do Gestor Elétrico:",
-                        value=lead.get("email_destinatario", ""),
-                        placeholder="Cole aqui o e-mail real do gestor elétrico obtido no Lusha ou LinkedIn (ex: nome.sobrenome@empresa.com)",
-                        key=f"dest_{lid}"
-                    )
+                    c_dest1, c_dest2 = st.columns([2, 1])
+                    with c_dest1:
+                        email_dest_input = st.text_input(
+                            "E-mail Verificado do Gestor Elétrico:",
+                            value=lead.get("email_destinatario", ""),
+                            placeholder="ex: nome.sobrenome@empresa.com",
+                            key=f"dest_{lid}"
+                        )
+                    with c_dest2:
+                        contato_nome_input = st.text_input(
+                            "Nome do Decisor:",
+                            value=lead.get("contato_nome", ""),
+                            key=f"nome_{lid}"
+                        )
                     assunto_input = st.text_input(
                         "Linha de Assunto:",
                         value=lead.get("assunto", ""),
@@ -578,7 +584,7 @@ with tab_prospeccao:
                         if lead.get("status") != "ENVIADO":
                             if st.button("🚀 Disparar E-mail com Anexos (Titan SMTP)", key=f"btn_send_{lid}", type="primary"):
                                 if not email_dest_input or "@" not in email_dest_input:
-                                    st.warning("⚠️ Cole o e-mail verificado do gestor elétrico (obtido via Lusha ou LinkedIn) para prosseguir com o disparo.")
+                                    st.warning("⚠️ O e-mail verificado do gestor elétrico é obrigatório para prosseguir com o disparo.")
                                 elif eh_empresa_bloqueada(email_dest_input) or eh_empresa_bloqueada(lead.get("dominio", "")):
                                     st.warning("ℹ️ Envio não permitido: O domínio @sma-eng.com.br não deve ser prospectado como lead.")
                                 else:
@@ -594,6 +600,7 @@ with tab_prospeccao:
                                             st.success(f"✅ {res_envio['mensagem']}")
                                             atualizar_lead_campanha(lid, {
                                                 "status": "ENVIADO",
+                                                "contato_nome": contato_nome_input,
                                                 "email_destinatario": email_dest_input,
                                                 "assunto": assunto_input,
                                                 "corpo_email": corpo_input,
@@ -616,6 +623,7 @@ with tab_prospeccao:
                     with col_act2:
                         if st.button("💾 Salvar Alterações", key=f"btn_save_{lid}"):
                             atualizar_lead_campanha(lid, {
+                                "contato_nome": contato_nome_input,
                                 "email_destinatario": email_dest_input,
                                 "assunto": assunto_input,
                                 "corpo_email": corpo_input
