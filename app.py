@@ -106,7 +106,7 @@ from grafo_agentes import (
     EstadoProjeto
 )
 from agente_marketing import gerar_conteudo_linkedin
-from agente_prospeccao import gerar_cadencia_prospeccao, gerar_link_busca_linkedin
+from agente_prospeccao import gerar_cadencia_prospeccao
 from agente_inteligencia import analisar_especificacao_tecnica
 from agente_pos_comissionamento import gerar_pacote_encerramento
 from agente_backoffice import processar_conformidade_backoffice

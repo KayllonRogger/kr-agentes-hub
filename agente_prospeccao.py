@@ -70,3 +70,8 @@ if __name__ == "__main__":
     
     print(resultado)
     print(f"\n🔗 Link de Busca Direto: {link}")
+
+def gerar_link_busca_linkedin(empresa: str, cargo: str = "Manutenção Elétrica") -> str:
+    import urllib.parse
+    query = f"{cargo} {empresa}"
+    return f"https://www.linkedin.com/search/results/people/?keywords={urllib.parse.quote(query)}"
