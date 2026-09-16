@@ -16,6 +16,9 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
     print("⚠️ [AVISO] GOOGLE_API_KEY não encontrada nas variáveis de ambiente. Verifique o arquivo .env.")
 
+# Chave de API da plataforma Lusha B2B Prospecting
+LUSHA_API_KEY = os.getenv("LUSHA_API_KEY", "")
+
 # Metadados institucionais centralizados da KR Engenharia
 DADOS_EMPRESA = {
     "razao_social": "KR Consultoria e Soluções em Engenharia LTDA",

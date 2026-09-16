@@ -20,7 +20,24 @@
     "status": "PRONTO_PARA_DISPARO",
     "data_criacao": "15/09/2026 21:39",
     "data_envio": null,
-    "resultado_envio": ""
+    "resultado_envio": "",
+    "contato_nome": "Lucas Fernandes Silva",
+    "cargo_real": "Heavy Equipment Operator",
+    "telefones_contato": [
+      "📱 Móvel: +55 31 99521-5318"
+    ],
+    "linkedin_contato": "https://www.linkedin.com/in/lucas-fernandes-silva-585863235",
+    "lusha_enriquecido": true,
+    "lusha_status": "ENRIQUECIDO",
+    "lusha_info": {
+      "emails_encontrados": [],
+      "emails_trabalho": [],
+      "telefones": [
+        "📱 Móvel: +55 31 99521-5318"
+      ],
+      "cidade": "Parauapebas",
+      "estado": "Pará"
+    }
   },
   {
     "id": "LEAD-1789529991-2",

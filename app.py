@@ -40,8 +40,10 @@ from prospeccao_autonoma import (
     atualizar_lead_campanha,
     excluir_lead_campanha,
     limpar_fila_campanhas,
-    gerar_links_prospeccao
+    gerar_links_prospeccao,
+    enriquecer_lead_por_id
 )
+from servico_lusha import consultar_contato_lusha, consultar_empresa_lusha
 from documentos_kr import compilar_documentos_institucionais
 
 # Configuração da Página Web
@@ -460,7 +462,7 @@ with tab_prospeccao:
                         st.markdown(f"**Status Atual:** `{st_badge}`" + (f" ({lead.get('data_envio')})" if lead.get('data_envio') else ""))
 
                     st.markdown("#### 🔍 Engrenagens de Busca de Contatos Reais (Lusha & LinkedIn)")
-                    st.info("💡 **Localização Precisa:** Clique em **Lusha** ou **LinkedIn** para localizar o e-mail corporativo direto e telefone do gestor elétrico. Cole o e-mail verificado no campo abaixo para habilitar o envio com portfólio.")
+                    st.info("💡 **Localização Precisa:** Clique em **Lusha** ou **LinkedIn** para localizar o perfil do gestor elétrico. Cole a URL do perfil ou o nome abaixo para que a **API da Lusha** recupere o e-mail corporativo verificado e telefones diretos automaticamente, sem adivinhações.")
 
                     col_g1, col_g2, col_g3, col_g4 = st.columns(4)
                     with col_g1:
@@ -487,6 +489,57 @@ with tab_prospeccao:
                             url=lead.get("link_rocketreach", f"https://www.google.com/search?q=site%3Arocketreach.co+{urllib.parse.quote(lead.get('empresa', ''))}"),
                             help="Consulta complementar para validação de contatos corporativos verificados."
                         )
+
+                    # Widget Interativo de Enriquecimento Automático via Lusha API
+                    with st.container():
+                        st.markdown("##### ⚡ Enriquecedor Automático Lusha API (E-mail Verificado & Celular Direto)")
+                        if lead.get("lusha_enriquecido"):
+                            st.success(f"✅ **Decisor Verificado via Lusha API:** `{lead.get('contato_nome', 'Gestor Elétrico')}` | Cargo: `{lead.get('cargo_real', lead.get('cargo_alvo'))}`")
+                            if lead.get("telefones_contato"):
+                                st.markdown("📞 **Contatos Telefônicos Diretos:** " + " | ".join([f"`{t}`" for t in lead.get("telefones_contato", [])]))
+
+                        col_lu1, col_lu2, col_lu3 = st.columns([3, 2, 2])
+                        with col_lu1:
+                            lu_url_input = st.text_input(
+                                "URL do Perfil no LinkedIn do Decisor:",
+                                value=lead.get("linkedin_contato", ""),
+                                placeholder="https://www.linkedin.com/in/perfil-do-gestor",
+                                key=f"lu_url_{lid}",
+                                help="Cole a URL do LinkedIn obtida pelas buscas acima para extrair o e-mail corporativo verificado e telefone."
+                            )
+                        with col_lu2:
+                            lu_nome_input = st.text_input(
+                                "Ou Nome do Decisor:",
+                                value=lead.get("contato_nome", ""),
+                                placeholder="Ex: Roberto Carlos",
+                                key=f"lu_nome_{lid}",
+                                help="Nome do gestor na empresa indicada."
+                            )
+                        with col_lu3:
+                            st.write("")
+                            st.write("")
+                            btn_consultar_lusha = st.button("⚡ Consultar Lusha API", key=f"btn_lu_{lid}", type="secondary")
+
+                        if btn_consultar_lusha:
+                            if not lu_url_input and not lu_nome_input:
+                                st.warning("Informe a URL do LinkedIn ou o Nome do Decisor para consultar a Lusha API.")
+                            else:
+                                with st.spinner("Consultando Lusha API para recuperar e-mail corporativo verificado e telefones..."):
+                                    res_lu = enriquecer_lead_por_id(
+                                        lead_id=lid,
+                                        linkedin_url=lu_url_input if lu_url_input else None,
+                                        nome_completo=lu_nome_input if lu_nome_input else None
+                                    )
+                                    if res_lu.get("encontrado") and res_lu.get("dados_lusha"):
+                                        dl = res_lu["dados_lusha"]
+                                        st.success(f"🎯 Contato localizado com sucesso: **{dl.get('nome_completo')}** ({dl.get('cargo') or lead.get('cargo_alvo')})")
+                                        if dl.get("email_principal"):
+                                            st.info(f"📧 E-mail Corporativo Verificado: `{dl.get('email_principal')}`")
+                                        if dl.get("telefones_formatados"):
+                                            st.write("📞 Telefones obtidos: " + ", ".join(dl.get("telefones_formatados")))
+                                        st.rerun()
+                                    else:
+                                        st.warning(f"⚠️ {res_lu.get('mensagem', 'Contato não localizado no diretório Lusha.')}")
 
                     st.markdown("#### ✉️ Proposta de E-mail Estruturada por Lucas Campos")
                     
@@ -621,13 +674,56 @@ with tab_prospeccao:
             st.divider()
             st.markdown("### 📧 Disparo Oficial de E-mail via Lucas Campos")
             st.caption("Envio autônomo diretamente da conta institucional `lucas.campos@krconsultoria.com.br` via Titan SMTP.")
+
+            # Widget Lusha API para Prospecção Sob Demanda
+            with st.expander("⚡ Consultar Lusha API (Obter E-mail Verificado & Celular Direto)", expanded=True):
+                st.caption("Consulte diretamente o perfil do gestor no Lusha para auto-preencher o e-mail verificado e telefone.")
+                col_lu_m2_1, col_lu_m2_2, col_lu_m2_3 = st.columns([3, 2, 2])
+                with col_lu_m2_1:
+                    lu_m2_url = st.text_input("URL do Perfil no LinkedIn do Decisor:", placeholder="https://www.linkedin.com/in/...", key="lu_m2_url")
+                with col_lu_m2_2:
+                    lu_m2_nome = st.text_input("Ou Nome do Decisor:", placeholder="Ex: Roberto Silva", key="lu_m2_nome")
+                with col_lu_m2_3:
+                    st.write("")
+                    st.write("")
+                    btn_lu_m2 = st.button("⚡ Buscar no Lusha", key="btn_lu_m2")
+
+                if btn_lu_m2:
+                    if not lu_m2_url and not lu_m2_nome:
+                        st.warning("Informe o link do LinkedIn ou o Nome do Decisor.")
+                    else:
+                        with st.spinner("Consultando Lusha API..."):
+                            primeiro_p = None
+                            ultimo_p = None
+                            if lu_m2_nome and not lu_m2_url:
+                                pts = lu_m2_nome.strip().split()
+                                primeiro_p = pts[0]
+                                ultimo_p = " ".join(pts[1:]) if len(pts) > 1 else "Silva"
+                            res_m2 = consultar_contato_lusha(
+                                linkedin_url=lu_m2_url if lu_m2_url else None,
+                                primeiro_nome=primeiro_p,
+                                ultimo_nome=ultimo_p,
+                                dominio_empresa=st.session_state.get('empresa_atual', '')
+                            )
+                            if res_m2.get("encontrado") and res_m2.get("dados"):
+                                d_m2 = res_m2["dados"]
+                                st.session_state.m2_email_dest = d_m2.get("email_principal", "")
+                                st.success(f"🎯 Contato localizado: **{d_m2.get('nome_completo')}** ({d_m2.get('cargo')})")
+                                if d_m2.get("email_principal"):
+                                    st.info(f"📧 E-mail Corporativo Verificado: `{d_m2.get('email_principal')}`")
+                                if d_m2.get("telefones_formatados"):
+                                    st.write("📞 Telefones: " + ", ".join(d_m2.get("telefones_formatados")))
+                                st.rerun()
+                            else:
+                                st.warning(f"⚠️ {res_m2.get('mensagem', 'Contato não localizado no Lusha.')}")
             
             docs_institucionais = compilar_documentos_institucionais()
             anexar_documentos = st.checkbox("📎 Anexar Carta de Apresentação e Portfólio Oficial da KR", value=True, key="chk_anexar_pontual")
 
             col_email1, col_email2 = st.columns(2)
             with col_email1:
-                destinatario_email = st.text_input("E-mail do Decisor/Cliente:", placeholder="ex: gerente.eletrica@mineradora.com.br", key="input_dest_email")
+                val_email_init = st.session_state.get("m2_email_dest", "")
+                destinatario_email = st.text_input("E-mail do Decisor/Cliente:", value=val_email_init, placeholder="ex: gerente.eletrica@mineradora.com.br", key="input_dest_email")
                 assunto_padrao = f"KR Engenharia | Diagnóstico Técnico em {st.session_state.get('empresa_atual', 'Sistemas de Potência')}"
                 assunto_email = st.text_input("Assunto do E-mail:", value=assunto_padrao, key="input_assunto_email")
                 

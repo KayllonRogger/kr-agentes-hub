@@ -8,6 +8,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from config import DADOS_EMPRESA, CONTAS_FUNCIONARIOS
 from utils import get_llm, extrair_texto
 from documentos_kr import compilar_documentos_institucionais
+from servico_lusha import consultar_contato_lusha, consultar_empresa_lusha, enriquecer_lead_com_lusha
 
 ARQUIVO_CAMPANHAS = "campanhas_prospeccao.json"
 
@@ -391,7 +392,13 @@ def executar_varredura_setor(
             "link_linkedin": links["linkedin_direto"],
             "link_xray": links["google_xray"],
             "link_rocketreach": links["rocketreach"],
-            "email_destinatario": "",  # Vazio para ser preenchido com o e-mail real obtido via Lusha / LinkedIn
+            "email_destinatario": "",  # Preenchido via enriquecimento Lusha ou busca de contatos
+            "contato_nome": "",
+            "cargo_real": "",
+            "telefones_contato": [],
+            "linkedin_contato": "",
+            "lusha_enriquecido": False,
+            "lusha_status": "PENDENTE",
             "assunto": email_gerado["assunto"],
             "corpo_email": email_gerado["corpo"],
             "anexos": anexos_oficiais,
@@ -419,6 +426,35 @@ def atualizar_lead_campanha(lead_id: str, updates: dict) -> bool:
     if atualizado:
         salvar_fila_campanhas(fila)
     return atualizado
+
+def enriquecer_lead_por_id(
+    lead_id: str,
+    linkedin_url: Optional[str] = None,
+    nome_completo: Optional[str] = None
+) -> Dict:
+    """
+    Localiza um lead específico na fila de campanhas e enriquece com a API Lusha,
+    salvando e-mail corporativo verificado e telefones sem deduções especulativas.
+    """
+    fila = carregar_fila_campanhas()
+    lead_alvo = None
+    for l in fila:
+        if l.get("id") == lead_id:
+            lead_alvo = l
+            break
+    if not lead_alvo:
+        return {"sucesso": False, "encontrado": False, "mensagem": f"Lead {lead_id} não localizado na fila."}
+
+    resultado = enriquecer_lead_com_lusha(
+        lead_alvo,
+        linkedin_url=linkedin_url,
+        nome_completo=nome_completo
+    )
+
+    if resultado.get("encontrado"):
+        salvar_fila_campanhas(fila)
+
+    return resultado
 
 def excluir_lead_campanha(lead_id: str) -> bool:
     """Remove um lead específico da fila de campanhas."""
