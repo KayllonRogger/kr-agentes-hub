@@ -149,6 +149,26 @@ def formatar_corpo_html(texto_conteudo: str) -> str:
 
     return "\n".join(paragrafos)
 
+def remover_texto_pos_fechamento(texto: str) -> str:
+    """
+    Remove qualquer assinatura textual residual após a saudação de encerramento
+    (ex: 'Atenciosamente,', 'Cordialmente,'), garantindo que apenas a assinatura
+    oficial HTML/texto estruturada com logotipo da KR Engenharia seja incluída.
+    """
+    fechamentos = [
+        "atenciosamente,", "atenciosamente",
+        "cordialmente,", "cordialmente",
+        "respeitosamente,", "respeitosamente",
+        "um abraço,", "abraços,"
+    ]
+    linhas = texto.strip().split("\n")
+    linhas_filtradas = []
+    for linha in linhas:
+        linhas_filtradas.append(linha)
+        if linha.strip().lower() in fechamentos:
+            break
+    return "\n".join(linhas_filtradas).strip()
+
 def enviar_email_funcionario(
     funcionario_id: str,
     destinatario: str,
@@ -175,6 +195,9 @@ def enviar_email_funcionario(
             "erro": f"E-mail ou senha ausentes para {remetente_nome} ({funcionario_id}). Verifique o .env."
         }
 
+    # Limpa eventual texto residual/duplicado após 'Atenciosamente,'
+    corpo_limpo = remover_texto_pos_fechamento(corpo_texto)
+
     # Monta a mensagem MIME
     msg = MIMEMultipart("mixed")
     msg["Subject"] = assunto
@@ -186,12 +209,12 @@ def enviar_email_funcionario(
     assinatura_txt = gerar_assinatura_texto(conta)
     assinatura_htm = gerar_assinatura_html(conta)
 
-    corpo_completo_texto = corpo_texto.strip() + "\n\n" + assinatura_txt
+    corpo_completo_texto = corpo_limpo + "\n\n" + assinatura_txt
 
     if corpo_html:
         conteudo_html = corpo_html
     else:
-        conteudo_html = formatar_corpo_html(corpo_texto)
+        conteudo_html = formatar_corpo_html(corpo_limpo)
 
     corpo_completo_html = f"""<!DOCTYPE html>
 <html lang="pt-BR">

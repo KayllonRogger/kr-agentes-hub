@@ -1,6 +1,7 @@
 import os
 import time
 import uuid
+import urllib.parse
 import streamlit as st
 
 # Módulos centrais refatorados
@@ -39,8 +40,7 @@ from prospeccao_autonoma import (
     atualizar_lead_campanha,
     excluir_lead_campanha,
     limpar_fila_campanhas,
-    gerar_links_prospeccao,
-    deduzir_padroes_email
+    gerar_links_prospeccao
 )
 from documentos_kr import compilar_documentos_institucionais
 
@@ -459,29 +459,41 @@ with tab_prospeccao:
                         st.markdown(f"**Domínio Corporativo:** `{lead.get('dominio', 'N/D')}`")
                         st.markdown(f"**Status Atual:** `{st_badge}`" + (f" ({lead.get('data_envio')})" if lead.get('data_envio') else ""))
 
-                    st.markdown("#### ⚙️ Engrenagens de Prospecção de Mercado (LinkedIn & Dorking)")
-                    col_gear1, col_gear2 = st.columns(2)
-                    with col_gear1:
-                        st.link_button(
-                            label=f"🔗 1. Abrir LinkedIn Direct ({lead.get('cargo_alvo')})",
-                            url=lead.get("link_linkedin", "#"),
-                            help="Acessa a busca direta de pessoas logadas no LinkedIn."
-                        )
-                    with col_gear2:
-                        st.link_button(
-                            label="🔎 2. Abrir Google X-Ray Search (Operador Booleano)",
-                            url=lead.get("link_xray", "#"),
-                            help="Pesquisa avançada que indexa perfis públicos do LinkedIn sem travas ou limites."
-                        )
+                    st.markdown("#### 🔍 Engrenagens de Busca de Contatos Reais (Lusha & LinkedIn)")
+                    st.info("💡 **Localização Precisa:** Clique em **Lusha** ou **LinkedIn** para localizar o e-mail corporativo direto e telefone do gestor elétrico. Cole o e-mail verificado no campo abaixo para habilitar o envio com portfólio.")
 
-                    padroes_str = " | ".join([f"`{p}`" for p in lead.get("padroes_email", [])])
-                    st.caption(f"💡 **Padrões de E-mail B2B Deduzidos:** {padroes_str}")
+                    col_g1, col_g2, col_g3, col_g4 = st.columns(4)
+                    with col_g1:
+                        st.link_button(
+                            label="⚡ 1. Buscar no Lusha",
+                            url=lead.get("link_lusha", f"https://www.google.com/search?q=site%3Alusha.com+{urllib.parse.quote(lead.get('empresa', ''))}"),
+                            help="Busca no diretório Lusha por e-mails diretos e telefones de gestores da área elétrica."
+                        )
+                    with col_g2:
+                        st.link_button(
+                            label=f"🔗 2. LinkedIn Direct",
+                            url=lead.get("link_linkedin", "#"),
+                            help="Busca direta de pessoas logadas no LinkedIn com cargo de gerenciamento elétrico."
+                        )
+                    with col_g3:
+                        st.link_button(
+                            label="🔎 3. Google X-Ray",
+                            url=lead.get("link_xray", "#"),
+                            help="Operador booleano avançado para perfis indexados sem limite de busca."
+                        )
+                    with col_g4:
+                        st.link_button(
+                            label="🎯 4. RocketReach",
+                            url=lead.get("link_rocketreach", f"https://www.google.com/search?q=site%3Arocketreach.co+{urllib.parse.quote(lead.get('empresa', ''))}"),
+                            help="Consulta complementar para validação de contatos corporativos verificados."
+                        )
 
                     st.markdown("#### ✉️ Proposta de E-mail Estruturada por Lucas Campos")
                     
                     email_dest_input = st.text_input(
-                        "E-mail do Decisor Encontrado (ou corporativo geral):",
+                        "E-mail Verificado do Gestor Elétrico:",
                         value=lead.get("email_destinatario", ""),
+                        placeholder="Cole aqui o e-mail real do gestor elétrico obtido no Lusha ou LinkedIn (ex: nome.sobrenome@empresa.com)",
                         key=f"dest_{lid}"
                     )
                     assunto_input = st.text_input(
@@ -492,9 +504,10 @@ with tab_prospeccao:
                     corpo_input = st.text_area(
                         "Corpo da Mensagem (Hiperpersonalizado de Engenharia para Engenharia):",
                         value=lead.get("corpo_email", ""),
-                        height=220,
+                        height=200,
                         key=f"corp_{lid}"
                     )
+                    st.caption("ℹ️ O corpo do e-mail encerra em 'Atenciosamente,'. A assinatura corporativa oficial com logotipo da KR Engenharia e dados da empresa será anexada automaticamente como rodapé.")
 
                     st.markdown("📎 **Anexos que acompanharão o disparo:**")
                     for anexo in lead.get("anexos", []):
@@ -505,7 +518,7 @@ with tab_prospeccao:
                         if lead.get("status") != "ENVIADO":
                             if st.button("🚀 Disparar E-mail com Anexos (Titan SMTP)", key=f"btn_send_{lid}", type="primary"):
                                 if not email_dest_input or "@" not in email_dest_input:
-                                    st.warning("Informe um e-mail válido para envio.")
+                                    st.warning("⚠️ Cole o e-mail verificado do gestor elétrico (obtido via Lusha ou LinkedIn) para prosseguir com o disparo.")
                                 else:
                                     with st.spinner(f"Lucas Campos conectando à conta Titan e enviando para {email_dest_input}..."):
                                         res_envio = enviar_email_funcionario(
@@ -564,31 +577,42 @@ with tab_prospeccao:
         with col_alvo2:
             servico_foco = st.text_input("Serviço em Foco:", placeholder="Ex: Estudos no ETAP, Comissionamento TAC ou Redes IEC 61850")
             
-        cargo_busca = st.selectbox("Cargo do Decisor a Buscar no LinkedIn:", [
+        cargo_busca = st.selectbox("Cargo do Decisor na Área de Gerenciamento Elétrico:", [
             "Gerente de Manutenção Elétrica",
-            "Coordenador de Comissionamento",
-            "Gerente de Engenharia",
-            "Engenheiro Eletricista de Proteção",
-            "Diretor de Operações"
+            "Gerente de Engenharia Elétrica",
+            "Coordenador de Manutenção Elétrica",
+            "Coordenador de Proteção e Comissionamento",
+            "Supervisor de Manutenção Elétrica e Automação",
+            "Gestor de Sistemas de Potência & Subestações"
         ])
         
-        btn_gerar_cadencia = st.button("Gerar Abordagem e Link de Busca", type="primary")
+        btn_gerar_cadencia = st.button("Gerar Abordagem e Links de Busca", type="primary")
         
         if btn_gerar_cadencia and empresa_alvo:
             with st.spinner("Lucas Campos mapeando decisores e estruturando abordagem..."):
                 try:
                     cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
                     link_linkedin = gerar_link_busca_linkedin(empresa_alvo, cargo_busca)
+                    query_lusha_pontual = urllib.parse.quote(f'site:lusha.com "{empresa_alvo}" ("{cargo_busca}" OR "Manutenção Elétrica")')
+                    link_lusha_pontual = f"https://www.google.com/search?q={query_lusha_pontual}"
                     salvar_markdown_saida("cadencia_prospeccao.md", cadencia)
                     
                     st.session_state.cadencia_atual = cadencia
                     st.session_state.empresa_atual = empresa_alvo
                         
                     st.success("Estratégia de Abordagem Concluída!")
-                    st.link_button(
-                        label=f"🔗 Abrir Busca de {cargo_busca} na {empresa_alvo} no LinkedIn",
-                        url=link_linkedin
-                    )
+                    col_p1, col_p2 = st.columns(2)
+                    with col_p1:
+                        st.link_button(
+                            label=f"⚡ Buscar no Lusha ({empresa_alvo})",
+                            url=link_lusha_pontual,
+                            help="Localize e-mails diretos e telefones de gestores da planta via Lusha."
+                        )
+                    with col_p2:
+                        st.link_button(
+                            label=f"🔗 Abrir Busca no LinkedIn Direct ({cargo_busca})",
+                            url=link_linkedin
+                        )
                     st.markdown(cadencia)
                 except Exception as e:
                     st.error(f"Erro ao gerar prospecção: {e}")
