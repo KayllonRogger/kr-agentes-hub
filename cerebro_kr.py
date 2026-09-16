@@ -1,20 +1,13 @@
 import os
 import sys
 from typing import TypedDict, Literal
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-# Importa todos os departamentos especializados
-from grafo_agentes import (
-    carregar_acervo_tecnico,
-    agente_diagnostico,
-    agente_operacoes,
-    agente_comercial,
-    EstadoProjeto
-)
+from config import DADOS_EMPRESA
+from utils import get_llm, extrair_texto, salvar_markdown_saida
+from grafo_agentes import executar_pipeline_proposta
 from agente_marketing import gerar_conteudo_linkedin
 from agente_prospeccao import gerar_cadencia_prospeccao
 from agente_inteligencia import analisar_especificacao_tecnica
@@ -22,37 +15,23 @@ from agente_pos_comissionamento import gerar_pacote_encerramento
 from agente_backoffice import processar_conformidade_backoffice
 from gerar_documento import renderizar_proposta
 
-# 1. Carrega configurações do .env
-load_dotenv()
-
-# 2. Inicializa o modelo
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash-lite",
-)
-
-def extrair_texto(resposta) -> str:
-    if isinstance(resposta.content, list):
-        return resposta.content[0].get('text', '')
-    return str(resposta.content)
-
-# 3. Estado do Cérebro Central com Histórico de Memória
+# 1. Estado do Cérebro Central com Histórico de Memória
 class EstadoCerebro(TypedDict):
     entrada_usuario: str
     categoria: str
     historico_conversa: list[dict]
     resposta_final: str
 
-# 4. Nó Supervisor com Memória Contextual
-def supervisor_triagem(estado: EstadoCerebro):
+# 2. Nó Supervisor com Memória Contextual
+def supervisor_triagem(estado: EstadoCerebro) -> dict:
     print("\n🧠 [Cérebro Central] Analisando mensagem considerando o histórico recente...")
     
-    # Monta resumo do histórico recente para contextualizar follow-ups
     historico_texto = ""
     for msg in estado.get("historico_conversa", [])[-4:]:
-        papel = "Usuário" if msg["role"] == "user" else "Assistente"
-        historico_texto += f"{papel}: {msg['content'][:200]}...\n"
+        papel = "Usuário" if msg.get("role") == "user" else "Assistente"
+        historico_texto += f"{papel}: {msg.get('content', '')[:200]}...\n"
 
-    prompt = f"""Você é o Cérebro Central de Operações da KR Engenharia.
+    prompt = f"""Você é o Cérebro Central de Operações da {DADOS_EMPRESA['nome_fantasia']}.
 Considere o histórico da conversa recente (se houver) para entender continuações e ajustes:
 
 HISTÓRICO RECENTE:
@@ -69,6 +48,7 @@ Classifique a solicitação do usuário em exatamente UMA das sete categorias ab
 
 Responda APENAS com a palavra da categoria (PROPOSTA, MARKETING, PROSPECCAO, EDITAL, POS_OBRA, BACKOFFICE ou CONSULTA)."""
 
+    llm = get_llm(temperature=0.0)
     resp = llm.invoke([
         SystemMessage(content=prompt),
         HumanMessage(content=estado["entrada_usuario"])
@@ -82,83 +62,55 @@ Responda APENAS com a palavra da categoria (PROPOSTA, MARKETING, PROSPECCAO, EDI
     print(f"🎯 [Roteador] Intenção identificada: Departamento de **{categoria}**")
     return {"categoria": categoria}
 
-# 5. Nós dos Departamentos
-
-def departamento_propostas(estado: EstadoCerebro):
+# 3. Nós dos Departamentos
+def departamento_propostas(estado: EstadoCerebro) -> dict:
     print("\n🏢 -> Ativando DEPARTAMENTO DE ENGENHARIA E PROPOSTAS...")
-    acervo = carregar_acervo_tecnico("acervo")
-    estado_projeto: EstadoProjeto = {
-        "dados_cliente": estado["entrada_usuario"],
-        "base_conhecimento": acervo,
-        "diagnostico_tecnico": "",
-        "planejamento_operacional": "",
-        "ajustes_do_engenheiro": "Condições comerciais padrão da KR Engenharia com ART inclusa.",
-        "proposta_final": ""
-    }
-    r_diag = agente_diagnostico(estado_projeto)
-    estado_projeto["diagnostico_tecnico"] = r_diag["diagnostico_tecnico"]
-    r_ops = agente_operacoes(estado_projeto)
-    estado_projeto["planejamento_operacional"] = r_ops["planejamento_operacional"]
-    r_com = agente_comercial(estado_projeto)
-    
-    os.makedirs("output", exist_ok=True)
-    with open("output/proposta_gerada.md", "w", encoding="utf-8") as f:
-        f.write(r_com["proposta_final"])
-        
+    resultado = executar_pipeline_proposta(estado["entrada_usuario"])
     renderizar_proposta()
-    return {"resposta_final": "Proposta Técnica e Documento Executivo gerados com sucesso na pasta 'output/'."}
+    return {"resposta_final": f"Proposta Técnica e Documento Executivo gerados com sucesso na pasta 'output/'.\n\nResumo Técnico:\n{resultado['diagnostico_tecnico'][:350]}..."}
 
-def departamento_marketing(estado: EstadoCerebro):
+def departamento_marketing(estado: EstadoCerebro) -> dict:
     print("\n📢 -> Ativando DEPARTAMENTO DE MARKETING...")
     post = gerar_conteudo_linkedin(estado["entrada_usuario"])
-    os.makedirs("output", exist_ok=True)
-    with open("output/post_linkedin.md", "w", encoding="utf-8") as f:
-        f.write(post)
-    return {"resposta_final": f"Artigo para o LinkedIn salvo em 'output/post_linkedin.md'.\n\nResumo:\n{post[:300]}..."}
+    salvar_markdown_saida("post_linkedin.md", post)
+    return {"resposta_final": f"Artigo para o LinkedIn salvo em 'output/post_linkedin.md'.\n\n{post}"}
 
-def departamento_prospeccao(estado: EstadoCerebro):
+def departamento_prospeccao(estado: EstadoCerebro) -> dict:
     print("\n🎯 -> Ativando DEPARTAMENTO DE PROSPECÇÃO B2B...")
     cadencia = gerar_cadencia_prospeccao(estado["entrada_usuario"])
-    os.makedirs("output", exist_ok=True)
-    with open("output/cadencia_prospeccao.md", "w", encoding="utf-8") as f:
-        f.write(cadencia)
-    return {"resposta_final": f"Plano de abordagem salvo em 'output/cadencia_prospeccao.md'.\n\nResumo:\n{cadencia[:300]}..."}
+    salvar_markdown_saida("cadencia_prospeccao.md", cadencia)
+    return {"resposta_final": f"Plano de abordagem salvo em 'output/cadencia_prospeccao.md'.\n\n{cadencia}"}
 
-def departamento_edital(estado: EstadoCerebro):
+def departamento_edital(estado: EstadoCerebro) -> dict:
     print("\n🔍 -> Ativando DEPARTAMENTO DE AUDITORIA DE EDITAIS...")
     relatorio = analisar_especificacao_tecnica(estado["entrada_usuario"])
-    os.makedirs("output", exist_ok=True)
-    with open("output/analise_edital.md", "w", encoding="utf-8") as f:
-        f.write(relatorio)
-    return {"resposta_final": f"Auditoria salva em 'output/analise_edital.md'.\n\nResumo:\n{relatorio[:300]}..."}
+    salvar_markdown_saida("analise_edital.md", relatorio)
+    return {"resposta_final": f"Auditoria salva em 'output/analise_edital.md'.\n\n{relatorio}"}
 
-def departamento_pos_obra(estado: EstadoCerebro):
+def departamento_pos_obra(estado: EstadoCerebro) -> dict:
     print("\n📦 -> Ativando DEPARTAMENTO DE SUCESSO DO CLIENTE...")
     pacote = gerar_pacote_encerramento(estado["entrada_usuario"])
-    os.makedirs("output", exist_ok=True)
-    with open("output/plano_pos_comissionamento.md", "w", encoding="utf-8") as f:
-        f.write(pacote)
-    return {"resposta_final": f"DataBook e ART salvos em 'output/plano_pos_comissionamento.md'.\n\nResumo:\n{pacote[:300]}..."}
+    salvar_markdown_saida("plano_pos_comissionamento.md", pacote)
+    return {"resposta_final": f"DataBook e ART salvos em 'output/plano_pos_comissionamento.md'.\n\n{pacote}"}
 
-def departamento_backoffice(estado: EstadoCerebro):
+def departamento_backoffice(estado: EstadoCerebro) -> dict:
     print("\n📋 -> Ativando DEPARTAMENTO DE BACKOFFICE E CONFORMIDADE...")
     relatorio = processar_conformidade_backoffice(estado["entrada_usuario"])
-    os.makedirs("output", exist_ok=True)
-    with open("output/conformidade_backoffice.md", "w", encoding="utf-8") as f:
-        f.write(relatorio)
-    return {"resposta_final": f"Dossiê salvo em 'output/conformidade_backoffice.md'.\n\nResumo:\n{relatorio[:300]}..."}
+    salvar_markdown_saida("conformidade_backoffice.md", relatorio)
+    return {"resposta_final": f"Dossiê salvo em 'output/conformidade_backoffice.md'.\n\n{relatorio}"}
 
-def departamento_consulta(estado: EstadoCerebro):
+def departamento_consulta(estado: EstadoCerebro) -> dict:
     print("\n💡 -> Ativando CONSULTORIA TÉCNICA DIRETA...")
-    prompt = """Você é o Consultor Técnico Especialista da KR Engenharia.
-Responda com base no rigor normativo (IEEE, IEC 61850, ABNT) e considere o histórico anterior se for uma continuação de pergunta."""
+    prompt = f"""Você é o Consultor Técnico Especialista da {DADOS_EMPRESA['nome_fantasia']}.
+Responda com base no rigor normativo (IEEE, IEC 61850, ABNT, ONS) e considere o histórico anterior se for uma continuação de pergunta."""
+    llm = get_llm(temperature=0.2)
     resp = llm.invoke([
         SystemMessage(content=prompt),
         HumanMessage(content=estado["entrada_usuario"])
     ])
     return {"resposta_final": extrair_texto(resp)}
 
-# 6. Grafo com Checkpointer de Memória (MemorySaver)
+# 4. Grafo de Roteamento com Memória
 def escolher_caminho(estado: EstadoCerebro) -> Literal[
     "depto_propostas", "depto_marketing", "depto_prospeccao", 
     "depto_edital", "depto_pos_obra", "depto_backoffice", "depto_consulta"
@@ -171,7 +123,7 @@ def escolher_caminho(estado: EstadoCerebro) -> Literal[
         "POS_OBRA": "depto_pos_obra",
         "BACKOFFICE": "depto_backoffice",
     }
-    return rotas.get(estado["categoria"], "depto_consulta")
+    return rotas.get(estado.get("categoria", ""), "depto_consulta")
 
 workflow = StateGraph(EstadoCerebro)
 
@@ -198,15 +150,13 @@ workflow.add_edge("depto_consulta", END)
 memoria = MemorySaver()
 cerebro = workflow.compile(checkpointer=memoria)
 
-# 7. Execução Interativa no Terminal com Memória Contínua
 if __name__ == "__main__":
     print("="*60)
-    print("🧠 CÉREBRO CENTRAL KR ENGENHARIA (COM MEMÓRIA DE SESSÃO)")
+    print(f"🧠 CÉREBRO CENTRAL {DADOS_EMPRESA['nome_fantasia'].upper()} (COM MEMÓRIA DE SESSÃO)")
     print("="*60)
     print("O sistema agora mantém o contexto da conversa ativa.")
     print("(Digite 'sair' para encerrar)\n")
 
-    # Configuração da sessão ativa de memória
     config_sessao = {"configurable": {"thread_id": "sessao-kr-diretor"}}
     historico = []
 

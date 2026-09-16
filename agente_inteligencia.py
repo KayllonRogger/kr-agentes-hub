@@ -1,27 +1,13 @@
 import os
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
-from grafo_agentes import carregar_acervo_tecnico
+from config import DADOS_EMPRESA
+from utils import get_llm, extrair_texto, salvar_markdown_saida, carregar_acervo_tecnico
 
-# 1. Carrega configurações do .env
-load_dotenv()
+PROMPT_INTELIGENCIA = f"""Você é o Engenheiro Especialista em Inteligência Regulatória e Análise de Editais da {DADOS_EMPRESA['nome_fantasia']}.
+Responsável Técnico: {DADOS_EMPRESA['responsavel_tecnico']} ({DADOS_EMPRESA['crea']}).
 
-# 2. Inicializa o modelo
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash-lite",
-)
-
-def extrair_texto(resposta) -> str:
-    if isinstance(resposta.content, list):
-        return resposta.content[0].get('text', '')
-    return str(resposta.content)
-
-PROMPT_INTELIGENCIA = """Você é o Engenheiro Especialista em Inteligência Regulatória e Análise de Editais da KR Engenharia.
-Responsável Técnico: Eng. Kayllon Rogger Nunes (CREA-MG nº 141854962-2).
-
-DIRETRIZES E LIMITES DE ESCOPO DA KR ENGENHARIA:
-{acervo}
+DIRETRIZES E LIMITES DE ESCOPO DA {DADOS_EMPRESA['nome_fantasia'].upper()}:
+{{acervo}}
 
 SUA MISSÃO:
 Analisar criticamente o Termo de Referência (TR), especificação técnica ou solicitação de concorrência enviada pelo cliente e produzir uma ANÁLISE DE CONFORMIDADE E LISTA DE DESVIOS TÉCNICOS.
@@ -39,11 +25,12 @@ ESTRUTURA DA RESPOSTA:
 """
 
 def analisar_especificacao_tecnica(texto_especificacao: str) -> str:
+    """Cruza o edital/TR do cliente com as diretrizes e limites de escopo do acervo técnico."""
     print("\n🔍 [Agente de Inteligência] Cruzando especificação do cliente com limites de escopo da KR...")
     acervo = carregar_acervo_tecnico("acervo")
-    
     prompt = PROMPT_INTELIGENCIA.format(acervo=acervo)
     
+    llm = get_llm(temperature=0.1)
     resp = llm.invoke([
         SystemMessage(content=prompt),
         HumanMessage(content=f"ESPECIFICAÇÃO TÉCNICA / TERMO DE REFERÊNCIA DO CLIENTE:\n\n{texto_especificacao}")
@@ -52,7 +39,6 @@ def analisar_especificacao_tecnica(texto_especificacao: str) -> str:
     return extrair_texto(resp)
 
 if __name__ == "__main__":
-    # Exemplo simulando um trecho de especificação técnica rigorosa de cliente
     exemplo_edital = """
     ESPECIFICAÇÃO TÉCNICA - EDITAL DE CONCORRÊNCIA PRIVADA
     OBJETO: Contratação de empresa especializada para modernização do Sistema de Proteção e Automação da SE Principal 138/13,8 kV.
@@ -69,12 +55,8 @@ if __name__ == "__main__":
     print("==========================================================")
     
     relatorio = analisar_especificacao_tecnica(exemplo_edital)
+    caminho_saida = salvar_markdown_saida("analise_edital.md", relatorio)
     
-    os.makedirs("output", exist_ok=True)
-    caminho_saida = "output/analise_edital.md"
-    with open(caminho_saida, "w", encoding="utf-8") as f:
-        f.write(relatorio)
-        
     print("\n" + "="*60)
     print(f"✅ ANÁLISE DE CONFORMIDADE E DESVIOS SALVA EM: {caminho_saida}")
     print("="*60 + "\n")

@@ -1,21 +1,11 @@
 import os
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from config import DADOS_EMPRESA
+from utils import get_llm, extrair_texto
 
-# Carrega as variáveis de ambiente do arquivo .env
-load_dotenv()
-
-# Inicializa o modelo Gemini configurado para rastrear no LangSmith
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.6-flash",
-    temperature=0.2,
-)
-
-# Prompt de Sistema estruturado para a KR Engenharia
-SYSTEM_PROMPT = """Você é o Agente Técnico Especialista da KR Engenharia (KR Consultoria e Soluções em Engenharia LTDA).
-Responsável Técnico: Eng. Kayllon Rogger Nunes (CREA-MG nº 141854962-2).
-Especialidade: Sistemas de Potência (até 500 kV), Proteção e Seletividade (ETAP), Automação de Subestações (SAS / IEC 61850) e Comissionamento de Campo (TAF/TAC).
+SYSTEM_PROMPT = f"""Você é o Agente Técnico Especialista da {DADOS_EMPRESA['nome_fantasia']} ({DADOS_EMPRESA['razao_social']}).
+Responsável Técnico: {DADOS_EMPRESA['responsavel_tecnico']} ({DADOS_EMPRESA['crea']}).
+Especialidade: {DADOS_EMPRESA['especialidades']}.
 
 Sua missão é analisar dados de um lead/cliente industrial e produzir:
 1. Diagnóstico preliminar e enquadramento da severidade do problema.
@@ -24,21 +14,19 @@ Sua missão é analisar dados de um lead/cliente industrial e produzir:
 4. Relação de documentos e arquivos técnicos a solicitar (unifilares, arquivos CID/ICD, dados de placa).
 """
 
-def executar_analise_piloto(dados_cliente: str):
+def executar_analise_piloto(dados_cliente: str) -> str:
+    """Executa a análise técnica inicial de um lead industrial."""
     mensagens = [
         SystemMessage(content=SYSTEM_PROMPT),
         HumanMessage(content=dados_cliente)
     ]
     
-    print("⏳ Processando análise técnica com rastreamento no LangSmith...\n")
+    print("⏳ Processando análise técnica com rastreamento...\n")
+    llm = get_llm(temperature=0.2)
     resposta = llm.invoke(mensagens)
-    # Garante a extração limpa do texto independentemente do formato de retorno
-    if isinstance(resposta.content, list):
-        return resposta.content[0].get('text', '')
-    return resposta.content
+    return extrair_texto(resposta)
 
 if __name__ == "__main__":
-    # Exemplo simulando dados recebidos de um cliente industrial
     caso_exemplo = """
     Cliente: Mineração Vale do Aço
     Tensão: Subestação 13,8 kV / 230 kV

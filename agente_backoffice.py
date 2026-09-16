@@ -1,26 +1,13 @@
 import os
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
+from config import DADOS_EMPRESA
+from utils import get_llm, extrair_texto, salvar_markdown_saida
 
-# 1. Carrega configurações do .env
-load_dotenv()
-
-# 2. Inicializa o modelo Gemini
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash-lite",
-)
-
-def extrair_texto(resposta) -> str:
-    if isinstance(resposta.content, list):
-        return resposta.content[0].get('text', '')
-    return str(resposta.content)
-
-PROMPT_BACKOFFICE = """Você é o Especialista em Backoffice, Conformidade Regulatória (HSE) e Faturamento Técnico da KR Engenharia.
-Responsável Técnico: Eng. Kayllon Rogger Nunes (CREA-MG nº 141854962-2).
+PROMPT_BACKOFFICE = f"""Você é o Especialista em Backoffice, Conformidade Regulatória (HSE) e Faturamento Técnico da {DADOS_EMPRESA['nome_fantasia']}.
+Responsável Técnico: {DADOS_EMPRESA['responsavel_tecnico']} ({DADOS_EMPRESA['crea']}).
 
 SUA MISSÃO:
-Receber dados sobre mobilização de campo, instrumentos de teste ou faturamento de serviços da KR Engenharia e estruturar o DOSSIÊ DE CONFORMIDADE E MEMÓRIA DE MEDIÇÃO.
+Receber dados sobre mobilização de campo, instrumentos de teste ou faturamento de serviços da {DADOS_EMPRESA['nome_fantasia']} e estruturar o DOSSIÊ DE CONFORMIDADE E MEMÓRIA DE MEDIÇÃO.
 
 ESTRUTURA DA RESPOSTA:
 1. DOSSIÊ DE HABILITAÇÃO DE CAMPO (NRs e SST):
@@ -32,12 +19,14 @@ ESTRUTURA DA RESPOSTA:
 3. MEMÓRIA DE CÁLCULO E BOLETIM DE MEDIÇÃO DE SERVIÇOS (BMS):
    - Estruturação do faturamento por marco de entrega ou horas trabalhadas (HN, HE com adicionais de 50%/100% conforme CLT).
    - Prestação de contas de despesas reembolsáveis via nota de débito acrescida da taxa de administração/BDI de 15%.
-   - Dados fiscais da KR Consultoria e Soluções em Engenharia LTDA (ISSQN item 7.01 recolhido em Belo Horizonte/MG).
+   - Dados fiscais da {DADOS_EMPRESA['razao_social']} (ISSQN item 7.01 recolhido em {DADOS_EMPRESA['cidade']}).
 """
 
 def processar_conformidade_backoffice(solicitacao_backoffice: str) -> str:
+    """Gera dossiê de conformidade para mobilização de equipe e medição."""
     print("\n📋 [Agente de Backoffice] Auditando documentação de segurança, instrumentos e faturamento...")
     
+    llm = get_llm(temperature=0.1)
     resp = llm.invoke([
         SystemMessage(content=PROMPT_BACKOFFICE),
         HumanMessage(content=f"DADOS DA OPERAÇÃO / MEDIÇÃO:\n{solicitacao_backoffice}")
@@ -58,12 +47,8 @@ if __name__ == "__main__":
     print("==========================================================")
     
     relatorio = processar_conformidade_backoffice(exemplo_mobilizacao)
+    caminho_saida = salvar_markdown_saida("conformidade_backoffice.md", relatorio)
     
-    os.makedirs("output", exist_ok=True)
-    caminho_saida = "output/conformidade_backoffice.md"
-    with open(caminho_saida, "w", encoding="utf-8") as f:
-        f.write(relatorio)
-        
     print("\n" + "="*60)
     print(f"✅ DOSSIÊ DE CONFORMIDADE E MEDIÇÃO SALVO EM: {caminho_saida}")
     print("="*60 + "\n")
