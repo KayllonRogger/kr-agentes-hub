@@ -24,6 +24,7 @@ from agente_inteligencia import analisar_especificacao_tecnica
 from agente_pos_comissionamento import gerar_pacote_encerramento
 from agente_backoffice import processar_conformidade_backoffice
 from gerar_documento import renderizar_proposta
+from servico_email import enviar_email_funcionario, testar_conexao_smtp
 
 # Configuração da Página Web
 st.set_page_config(
@@ -132,9 +133,10 @@ with st.sidebar:
     st.divider()
     st.write("👥 **Equipe de Funcionários:**")
     for fid, f_info in FUNCIONARIOS.items():
-        st.caption(f"• **{f_info['nome']}** ({f_info['departamento']})")
+        email_str = f_info.get("email", "")
+        st.markdown(f"• **{f_info['nome']}**<br>&nbsp;&nbsp;<span style='color:#718096;font-size:8pt;'>{f_info['departamento']}</span><br>&nbsp;&nbsp;<code style='font-size:7.5pt;'>{email_str}</code>", unsafe_allow_html=True)
     st.divider()
-    st.caption("LangGraph + Google Gemini + LangSmith")
+    st.caption("LangGraph + Google Gemini + Titan SMTP")
 
 # Definição das Abas
 tab_equipe, tab_cerebro, tab_propostas, tab_marketing, tab_prospeccao, tab_edital, tab_pos_obra, tab_backoffice = st.tabs([
@@ -330,6 +332,9 @@ with tab_prospeccao:
                 cadencia = gerar_cadencia_prospeccao(empresa_alvo, servico_foco)
                 link_linkedin = gerar_link_busca_linkedin(empresa_alvo, cargo_busca)
                 salvar_markdown_saida("cadencia_prospeccao.md", cadencia)
+                
+                st.session_state.cadencia_atual = cadencia
+                st.session_state.empresa_atual = empresa_alvo
                     
                 st.success("Estratégia de Abordagem Concluída!")
                 st.link_button(
@@ -339,6 +344,53 @@ with tab_prospeccao:
                 st.markdown(cadencia)
             except Exception as e:
                 st.error(f"Erro ao gerar prospecção: {e}")
+
+    if "cadencia_atual" in st.session_state:
+        st.divider()
+        st.markdown("### 📧 Disparo Oficial de E-mail via Lucas Campos")
+        st.caption("Envio autônomo diretamente da conta institucional `lucas.campos@krconsultoria.com.br` via Titan SMTP.")
+        
+        col_email1, col_email2 = st.columns(2)
+        with col_email1:
+            destinatario_email = st.text_input("E-mail do Decisor/Cliente:", placeholder="ex: gerente.eletrica@mineradora.com.br", key="input_dest_email")
+            assunto_padrao = f"KR Engenharia | Diagnóstico Técnico em {st.session_state.get('empresa_atual', 'Sistemas de Potência')}"
+            assunto_email = st.text_input("Assunto do E-mail:", value=assunto_padrao, key="input_assunto_email")
+            
+        with col_email2:
+            st.write("")
+            st.write("")
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                btn_enviar_email = st.button("🚀 Disparar E-mail Oficial", type="primary", key="btn_enviar_lucas")
+            with col_b2:
+                btn_testar_conexao = st.button("🔍 Testar Conexão Titan", key="btn_testar_titan")
+
+        if btn_testar_conexao:
+            with st.spinner("Testando autenticação de Lucas Campos no servidor Titan..."):
+                res_test = testar_conexao_smtp("LUCAS")
+                if res_test["sucesso"]:
+                    st.success(f"✅ {res_test['mensagem']} ({res_test.get('modo', '')})")
+                else:
+                    st.error(f"❌ {res_test['motivo']}")
+                    if "dica" in res_test:
+                        st.info(f"💡 {res_test['dica']}")
+
+        if btn_enviar_email:
+            if not destinatario_email or "@" not in destinatario_email:
+                st.warning("Por favor, informe um endereço de e-mail válido para o destinatário.")
+            else:
+                with st.spinner(f"Lucas Campos conectando à conta e disparando e-mail para {destinatario_email}..."):
+                    res_envio = enviar_email_funcionario(
+                        funcionario_id="LUCAS",
+                        destinatario=destinatario_email,
+                        assunto=assunto_email,
+                        corpo_texto=st.session_state.cadencia_atual
+                    )
+                    if res_envio["sucesso"]:
+                        st.success(f"✅ {res_envio['mensagem']}")
+                    else:
+                        st.error(f"❌ {res_envio['erro']}")
+                        st.info("💡 Se o Titan recusar autenticação, certifique-se de que o acesso SMTP/IMAP está ativado no painel Titan ou acesse primeiro via webmail (https://mail.titan.email).")
 
 # -------------------------------------------------------------
 # ABA 6: AUDITORIA DE EDITAIS

@@ -33,30 +33,35 @@ FUNCIONARIOS = {
     "LUCAS": {
         "nome": "Lucas Campos",
         "cargo": "Analista de Inteligência Comercial (SDR)",
-        "especialidade": "Mapeamento de decisores em mineradoras/EPCistas e cadências de abordagem no LinkedIn.",
+        "email": "lucas.campos@krconsultoria.com.br",
+        "especialidade": "Mapeamento de decisores em mineradoras/EPCistas e cadências de abordagem no LinkedIn/E-mail.",
         "departamento": "Vendas & Prospecção"
     },
     "MARIANA": {
         "nome": "Mariana Esteves",
         "cargo": "Especialista em Marketing Técnico",
+        "email": "mariana.esteves@krconsultoria.com.br",
         "especialidade": "Produção de artigos técnicos e estudos de caso de autoridade para o LinkedIn B2B.",
         "departamento": "Marketing"
     },
     "RAFAEL": {
         "nome": "Eng. Rafael Gomes",
         "cargo": "Especialista em Proteção e Estudos Elétricos",
+        "email": "rafael.gomes@krconsultoria.com.br",
         "especialidade": "Análise de transitórios, funções ANSI (50/51, 51N, 51V) e modelagem no ETAP.",
         "departamento": "Engenharia de Proteção"
     },
     "CARLOS": {
         "nome": "Eng. Carlos Tenaglia",
         "cargo": "Coordenador de Comissionamento e Campo",
+        "email": "carlos.tenaglia@krconsultoria.com.br",
         "especialidade": "Planejamento executivo de TAF/TAC, ensaios com malas microprocessadas e NR-10/NR-35.",
         "departamento": "Comissionamento & Campo"
     },
     "BEATRIZ": {
         "nome": "Beatriz Silveira",
         "cargo": "Customer Success & Gestão Contratual",
+        "email": "beatriz.silveira@krconsultoria.com.br",
         "especialidade": "Estruturação de DataBook As-Built, minutas de ART para o CREA-MG e retenção 30/90 dias.",
         "departamento": "Sucesso do Cliente"
     }

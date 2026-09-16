@@ -34,3 +34,49 @@ DADOS_EMPRESA = {
         "Automação de Subestações (SAS / IEC 61850) e Comissionamento (TAF/TAC)"
     )
 }
+
+# Configurações do servidor SMTP Titan
+SMTP_CONFIG = {
+    "host": os.getenv("SMTP_HOST", "smtp.titan.email"),
+    "port": int(os.getenv("SMTP_PORT", "465")),
+    "port_tls": int(os.getenv("SMTP_PORT_TLS", "587")),
+}
+
+# Credenciais dos Funcionários Autônomos de IA
+CONTAS_FUNCIONARIOS = {
+    "LUCAS": {
+        "email": os.getenv("EMAIL_LUCAS", "lucas.campos@krconsultoria.com.br"),
+        "senha": os.getenv("SENHA_LUCAS", ""),
+        "nome": "Lucas Campos",
+        "cargo": "Analista de Inteligência Comercial (SDR)",
+        "departamento": "Vendas & Prospecção"
+    },
+    "MARIANA": {
+        "email": os.getenv("EMAIL_MARIANA", "mariana.esteves@krconsultoria.com.br"),
+        "senha": os.getenv("SENHA_MARIANA", ""),
+        "nome": "Mariana Esteves",
+        "cargo": "Especialista em Marketing Técnico",
+        "departamento": "Marketing"
+    },
+    "RAFAEL": {
+        "email": os.getenv("EMAIL_RAFAEL", "rafael.gomes@krconsultoria.com.br"),
+        "senha": os.getenv("SENHA_RAFAEL", ""),
+        "nome": "Eng. Rafael Gomes",
+        "cargo": "Especialista em Proteção e Estudos Elétricos",
+        "departamento": "Engenharia de Proteção"
+    },
+    "CARLOS": {
+        "email": os.getenv("EMAIL_CARLOS", "carlos.tenaglia@krconsultoria.com.br"),
+        "senha": os.getenv("SENHA_CARLOS", ""),
+        "nome": "Eng. Carlos Tenaglia",
+        "cargo": "Coordenador de Comissionamento e Campo",
+        "departamento": "Comissionamento & Campo"
+    },
+    "BEATRIZ": {
+        "email": os.getenv("EMAIL_BEATRIZ", "beatriz.silveira@krconsultoria.com.br"),
+        "senha": os.getenv("SENHA_BEATRIZ", ""),
+        "nome": "Beatriz Silveira",
+        "cargo": "Customer Success & Gestão Contratual",
+        "departamento": "Sucesso do Cliente"
+    }
+}
