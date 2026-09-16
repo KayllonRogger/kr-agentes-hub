@@ -13,7 +13,12 @@ from grafo_agentes import (
     EstadoProjeto
 )
 from agente_marketing import gerar_conteudo_linkedin
-from agente_prospeccao import gerar_cadencia_prospeccao, gerar_link_busca_linkedin
+import urllib.parse
+from agente_prospeccao import gerar_cadencia_prospeccao
+
+def gerar_link_busca_linkedin(empresa: str, cargo: str = "Manutenção Elétrica") -> str:
+    query = f"{cargo} {empresa}"
+    return f"https://www.linkedin.com/search/results/people/?keywords={urllib.parse.quote(query)}"
 from agente_inteligencia import analisar_especificacao_tecnica
 from agente_pos_comissionamento import gerar_pacote_encerramento
 from agente_backoffice import processar_conformidade_backoffice
