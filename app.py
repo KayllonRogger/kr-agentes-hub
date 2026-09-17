@@ -43,10 +43,29 @@ from prospeccao_autonoma import (
     limpar_fila_campanhas,
     gerar_links_prospeccao,
     enriquecer_lead_por_id,
-    enriquecer_fila_autonomamente
+    enriquecer_fila_autonomamente,
+    calcular_dias_envio,
+    avancar_etapa_followup,
+    transferir_lead_para_especialista
 )
 from servico_lusha import consultar_contato_lusha, consultar_empresa_lusha
+from servico_rocketreach import (
+    verificar_status_rocketreach,
+    consultar_perfil_rocketreach,
+    enriquecer_lead_com_rocketreach
+)
 from documentos_kr import compilar_documentos_institucionais
+from auth_cookies import (
+    NOME_COOKIE_AUTH,
+    TIMEOUT_INATIVIDADE_SEGUNDOS,
+    gerar_token_auth,
+    obter_token_cookie,
+    validar_token_auth,
+    gravar_cookie_auth,
+    remover_cookie_auth,
+    injetar_script_inatividade_30min,
+    injetar_script_recuperacao_localstorage
+)
 
 # Configuração da Página Web
 st.set_page_config(
@@ -104,14 +123,40 @@ for p in ["assets/logo.png", "logo.png"]:
         caminho_logo = p
         break
 
-# CONTROLE DE ACESSO (LOGIN)
-if "autenticado" not in st.session_state:
-    st.session_state.autenticado = False
-
+# =============================================================
+# CONTROLE DE ACESSO E SESSÃO HÍBRIDA (QUERY PARAMS, COOKIES & 30M INATIVIDADE)
+# =============================================================
 if "session_id" not in st.session_state:
     st.session_state.session_id = f"sessao-{uuid.uuid4().hex[:8]}"
 
+# Tenta recuperar o token da sessão a partir de st.query_params (URL) ou Cookies HTTP (Persistência no F5)
+token_sessao = st.query_params.get("session") or obter_token_cookie()
+dados_sessao = validar_token_auth(token_sessao)
+
+if dados_sessao:
+    # Token assinado válido encontrado! Mantém autenticado mesmo após F5
+    st.session_state.autenticado = True
+    st.session_state.session_id = dados_sessao.get("session_id", st.session_state.session_id)
+    st.session_state.usuario_logado = dados_sessao.get("usuario", APP_USUARIO)
+    st.session_state.pop("msg_expiracao", None)
+    # Garante que a URL contenha o token válido para tolerância absoluta a F5
+    if st.query_params.get("session") != token_sessao:
+        st.query_params["session"] = token_sessao
+else:
+    # Se havia um token mas dados_sessao retornou None -> Expirou por inatividade (> 30 min) ou é inválido
+    if token_sessao:
+        st.session_state.autenticado = False
+        st.session_state.msg_expiracao = "Sua sessão expirou por inatividade (mais de 30 minutos sem interação). Faça login novamente."
+        st.query_params.clear()
+        remover_cookie_auth(reload_after=False)
+    elif "autenticado" not in st.session_state:
+        st.session_state.autenticado = False
+
+# Se não estiver autenticado, exibe a tela de login e encerra execução
 if not st.session_state.autenticado:
+    # Injeta script de recuperação instantânea via localStorage se o parâmetro não estiver na URL
+    injetar_script_recuperacao_localstorage()
+
     col_vazia1, col_login, col_vazia2 = st.columns(3)
     with col_login:
         st.write("")
@@ -121,6 +166,9 @@ if not st.session_state.autenticado:
         st.markdown(f'<div class="main-title">{DADOS_EMPRESA["nome_fantasia"].upper()}</div>', unsafe_allow_html=True)
         st.markdown('<div class="sub-title">Acesso Restrito ao Centro de IA</div>', unsafe_allow_html=True)
         
+        if st.session_state.get("msg_expiracao"):
+            st.warning(f"⚠️ {st.session_state.msg_expiracao}")
+        
         with st.form("form_login"):
             usuario_input = st.text_input("Usuário")
             senha_input = st.text_input("Senha", type="password")
@@ -129,10 +177,32 @@ if not st.session_state.autenticado:
             if btn_entrar:
                 if usuario_input == APP_USUARIO and senha_input == APP_SENHA:
                     st.session_state.autenticado = True
+                    st.session_state.usuario_logado = usuario_input
+                    st.session_state.pop("msg_expiracao", None)
+                    # Gera novo token com timestamp fresco
+                    novo_token = gerar_token_auth(usuario_input, st.session_state.session_id)
+                    # Registra nos query params (persistência imediata em F5 sem delays de iframe)
+                    st.query_params["session"] = novo_token
+                    # Grava paralelamente em cookie e localStorage para recuperação contínua
+                    gravar_cookie_auth(usuario_input, st.session_state.session_id, reload_after=False)
                     st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
     st.stop()
+
+# -------------------------------------------------------------
+# USUÁRIO AUTENTICADO: RENOVAÇÃO DESLIZANTE & VIGILÂNCIA DE 30 MIN
+# -------------------------------------------------------------
+# A cada interação válida do usuário, renova o timestamp de atividade (janela deslizante de 30 min)
+tempo_atual = time.time()
+if "ultimo_refresh_cookie" not in st.session_state or (tempo_atual - st.session_state.ultimo_refresh_cookie > 60):
+    novo_token_refresh = gerar_token_auth(APP_USUARIO, st.session_state.session_id)
+    st.query_params["session"] = novo_token_refresh
+    gravar_cookie_auth(APP_USUARIO, st.session_state.session_id, reload_after=False)
+    st.session_state.ultimo_refresh_cookie = tempo_atual
+
+# Injeta o watchdog JavaScript que monitora eventos (cliques, mouse, teclas) e desloga após 30 min sem interação
+injetar_script_inatividade_30min()
 
 # -------------------------------------------------------------
 # PAINEL PRINCIPAL (LOGADO)
@@ -148,9 +218,14 @@ with st.sidebar:
     st.write(DADOS_EMPRESA["responsavel_tecnico"])
     st.caption(DADOS_EMPRESA["crea"])
     st.caption(f"Sessão Ativa: `{st.session_state.session_id}`")
+    st.caption("🔒 Sessão persistente (Expira em 30 min de inatividade)")
     if st.button("Sair da Conta"):
+        st.query_params.clear()
+        remover_cookie_auth(reload_after=False)
+        st.session_state.clear()
         st.session_state.autenticado = False
         st.session_state.session_id = f"sessao-{uuid.uuid4().hex[:8]}"
+        st.session_state.pop("msg_expiracao", None)
         st.rerun()
     st.divider()
     st.write("👥 **Equipe de Funcionários:**")
@@ -437,14 +512,35 @@ with tab_prospeccao:
 
         st.divider()
 
-        # Fila de Oportunidades
+        # Status das Engrenagens de Prospecção B2B
+        with st.expander("🔌 Status das Engrenagens de Prospecção (RocketReach, Apollo.io & Lusha)", expanded=False):
+            col_st_rr, col_st_ap, col_st_lu = st.columns(3)
+            with col_st_rr:
+                st.markdown("**🎯 RocketReach API v2**")
+                status_rr = verificar_status_rocketreach()
+                if status_rr.get("ativo"):
+                    cred = status_rr.get("creditos", {})
+                    st.success(f"🟢 Ativa e Conectada! (Créditos: {cred})")
+                elif status_rr.get("pendente_email"):
+                    st.warning("⚠️ Confirmação de E-mail Pendente!")
+                    st.caption("A RocketReach enviou um e-mail de ativação para a sua caixa de entrada. Clique no link para liberar as buscas.")
+                else:
+                    st.info(f"ℹ️ {status_rr.get('mensagem', 'Não configurada')}")
+            with col_st_ap:
+                st.markdown("**🚀 Apollo.io B2B**")
+                st.success("🟢 Ativa para Enriquecimento Corporativo (Centrais PABX e Localização)")
+            with col_st_lu:
+                st.markdown("**⚡ Lusha API v2**")
+                st.warning("🟡 Chave Ativa (Atingiu Limite de Créditos / Plano Free)")
+
+        # Fila de Oportunidades & Funil Comercial
         col_hdr1, col_hdr2, col_hdr3 = st.columns([2, 1, 1])
         with col_hdr1:
-            st.markdown("### 📋 Fila de Oportunidades & Disparos Oficiais")
+            st.markdown("### 📋 Fila de Oportunidades & Pipeline B2B")
         with col_hdr2:
             if total_leads > 0:
-                if st.button("⚡ Re-enriquecer Fila (Apollo + Lusha)", key="btn_auto_enrich_all", help="Atualiza e-mails corporativos, telefones e saudações nominais de toda a fila."):
-                    with st.spinner("Lucas Campos enriquecendo toda a fila de leads via Apollo.io e Lusha..."):
+                if st.button("⚡ Re-enriquecer Fila (RocketReach + Apollo + Lusha)", key="btn_auto_enrich_all", help="Atualiza e-mails corporativos, telefones e saudações nominais de toda a fila com filtro de ICP elétrico."):
+                    with st.spinner("Lucas Campos enriquecendo toda a fila de leads via RocketReach, Apollo.io e Lusha..."):
                         res_auto = enriquecer_fila_autonomamente(forcar_redacao=True)
                         st.success(res_auto["mensagem"])
                         st.rerun()
@@ -454,16 +550,95 @@ with tab_prospeccao:
                     limpar_fila_campanhas()
                     st.rerun()
 
+        # Filtros por Etapa do Funil Comercial
+        count_prontos = sum(1 for l in fila_campanhas if l.get("status") == "PRONTO_PARA_DISPARO")
+        count_followup = sum(1 for l in fila_campanhas if l.get("status") in [
+            "ENVIADO", "CONTATO_INICIAL_ENVIADO",
+            "FOLLOW_UP_1_PENDENTE", "FOLLOW_UP_1_ENVIADO",
+            "FOLLOW_UP_2_PENDENTE", "FOLLOW_UP_2_ENVIADO",
+            "BREAK_UP_PENDENTE", "ENCERRADO_SEM_RESPOSTA"
+        ])
+        count_atendimento = sum(1 for l in fila_campanhas if l.get("status") == "RESPONDIDO_EM_NEGOCIACAO")
+        count_fechados = sum(1 for l in fila_campanhas if l.get("status") == "CONTRATO_FECHADO")
+
+        filtro_aba = st.radio(
+            "Filtrar Funil Comercial da KR Engenharia:",
+            [
+                f"Todos ({total_leads})",
+                f"🟡 Pronto p/ Disparo ({count_prontos})",
+                f"⏳ Aguardando Resposta / Follow-up ({count_followup})",
+                f"🛠️ Em Atendimento Técnico ({count_atendimento})",
+                f"🏆 Contratos Fechados ({count_fechados})"
+            ],
+            horizontal=True,
+            key="filtro_funil_leads"
+        )
+
+        leads_filtrados = []
+        for lead in fila_campanhas:
+            st_lead = lead.get("status", "PRONTO_PARA_DISPARO")
+            if "Pronto p/ Disparo" in filtro_aba and st_lead != "PRONTO_PARA_DISPARO":
+                continue
+            if "Aguardando Resposta" in filtro_aba and st_lead not in [
+                "ENVIADO", "CONTATO_INICIAL_ENVIADO",
+                "FOLLOW_UP_1_PENDENTE", "FOLLOW_UP_1_ENVIADO",
+                "FOLLOW_UP_2_PENDENTE", "FOLLOW_UP_2_ENVIADO",
+                "BREAK_UP_PENDENTE", "ENCERRADO_SEM_RESPOSTA"
+            ]:
+                continue
+            if "Em Atendimento" in filtro_aba and st_lead != "RESPONDIDO_EM_NEGOCIACAO":
+                continue
+            if "Contratos Fechados" in filtro_aba and st_lead != "CONTRATO_FECHADO":
+                continue
+            leads_filtrados.append(lead)
+
         if total_leads == 0:
             st.info("Nenhuma oportunidade na fila no momento. Clique em 'Iniciar Nova Varredura Autônoma no Mercado' acima para começar.")
+        elif len(leads_filtrados) == 0:
+            st.info("Nenhum lead encontrado para o filtro selecionado.")
         else:
-            for lead in fila_campanhas:
+            for lead in leads_filtrados:
                 lid = lead["id"]
-                st_badge = "🟡 PRONTO PARA DISPARO" if lead.get("status") == "PRONTO_PARA_DISPARO" else ("🟢 ENVIADO" if lead.get("status") == "ENVIADO" else "🔴 ERRO")
+                st_lead = lead.get("status", "PRONTO_PARA_DISPARO")
+                dias_envio = calcular_dias_envio(lead.get("data_envio"))
                 nome_dec = lead.get("contato_nome") or "Decisor Elétrico"
                 cargo_dec = lead.get("cargo_real") or lead.get("cargo_alvo", "Gestor Elétrico")
-                
-                with st.expander(f"🏢 {lead.get('empresa')} — {nome_dec} ({cargo_dec}) [{st_badge}]", expanded=(lead.get("status") == "PRONTO_PARA_DISPARO")):
+                custodia_nome = lead.get("custodia_funcionario_nome", "Lucas Campos")
+
+                # Formatação visual do Badge de Status
+                if st_lead == "CONTRATO_FECHADO":
+                    st_badge = f"🏆 CONTRATO FECHADO — Custódia: {custodia_nome}"
+                elif st_lead == "RESPONDIDO_EM_NEGOCIACAO":
+                    st_badge = f"🛠️ EM ATENDIMENTO TÉCNICO — Custódia: {custodia_nome}"
+                elif st_lead == "PRONTO_PARA_DISPARO":
+                    st_badge = "🟡 PRONTO PARA DISPARO"
+                elif st_lead in ["ENVIADO", "CONTATO_INICIAL_ENVIADO"]:
+                    st_badge = f"📬 CONTATO INICIAL ENVIADO (há {dias_envio}d)"
+                elif st_lead == "FOLLOW_UP_1_PENDENTE":
+                    st_badge = "⏰ FOLLOW-UP 1 PENDENTE"
+                elif st_lead == "FOLLOW_UP_1_ENVIADO":
+                    st_badge = f"📬 FOLLOW-UP 1 ENVIADO (há {dias_envio}d)"
+                elif st_lead == "FOLLOW_UP_2_PENDENTE":
+                    st_badge = "⏰ FOLLOW-UP 2 PENDENTE"
+                elif st_lead == "FOLLOW_UP_2_ENVIADO":
+                    st_badge = f"📬 FOLLOW-UP 2 ENVIADO (há {dias_envio}d)"
+                elif st_lead == "BREAK_UP_PENDENTE":
+                    st_badge = "⏰ BREAK-UP PENDENTE"
+                elif st_lead == "ENCERRADO_SEM_RESPOSTA":
+                    st_badge = "💤 ENCERRADO SEM RESPOSTA"
+                else:
+                    st_badge = f"ℹ️ {st_lead}"
+
+                expandido = (st_lead in ["PRONTO_PARA_DISPARO", "FOLLOW_UP_1_PENDENTE", "FOLLOW_UP_2_PENDENTE", "BREAK_UP_PENDENTE"])
+
+                with st.expander(f"🏢 {lead.get('empresa')} — {nome_dec} ({cargo_dec}) [{st_badge}]", expanded=expandido):
+                    # Aviso de Bloqueio se estiver sob custódia de especialista
+                    if lead.get("bloqueado_prospeccao_fria"):
+                        st.success(
+                            f"🔒 **PROSPECÇÃO FRIA BLOQUEADA** — Lead sob custódia oficial de **{custodia_nome}** ({lead.get('custodia_funcionario_cargo', '')}) "
+                            f"desde {lead.get('data_transferencia', 'N/D')}. Tarefa associada no Escritório Virtual: `{lead.get('tarefa_id_escritorio', 'N/D')}`."
+                        )
+
                     # Painel do Decisor e Contatos Autônomos
                     st.markdown("#### 👤 Inteligência do Decisor Mapeado Autonomamente")
                     c_dec1, c_dec2 = st.columns(2)
@@ -482,7 +657,7 @@ with tab_prospeccao:
                             st.markdown(f"**Localização da Planta:** `{lead.get('cidade', '')} - {lead.get('estado', '')}`")
 
                     # Ferramentas complementares de busca em expander recolhido
-                    with st.expander("🔍 Engrenagens de Busca & Ajustes Complementares (Lusha / Apollo / LinkedIn)", expanded=False):
+                    with st.expander("🔍 Engrenagens de Busca & Ajustes Complementares (RocketReach / Apollo / LinkedIn)", expanded=False):
                         st.caption("Consulte os diretórios externos diretamente caso queira conferir perfis adicionais da planta:")
                         col_g1, col_g2, col_g3, col_g4, col_g5 = st.columns(5)
                         with col_g1:
@@ -516,7 +691,7 @@ with tab_prospeccao:
                                 help="Consulta complementar para validação de contatos corporativos verificados."
                             )
 
-                        col_lu1, col_lu2, col_lu3 = st.columns([3, 2, 2])
+                        col_lu1, col_lu2, col_lu3 = st.columns([3, 2, 3])
                         with col_lu1:
                             lu_url_input = st.text_input(
                                 "URL do Perfil no LinkedIn do Decisor:",
@@ -528,25 +703,124 @@ with tab_prospeccao:
                             lu_nome_input = st.text_input(
                                 "Ou Nome do Decisor:",
                                 value=lead.get("contato_nome", ""),
-                                placeholder="Ex: Roberto Carlos",
+                                placeholder="Ex: Rodrigo Santos",
                                 key=f"lu_nome_{lid}"
                             )
                         with col_lu3:
                             st.write("")
                             st.write("")
-                            if st.button("⚡ Consultar Lusha API", key=f"btn_lu_{lid}", type="secondary"):
-                                with st.spinner("Consultando Lusha API..."):
-                                    res_lu = enriquecer_lead_por_id(
-                                        lead_id=lid,
-                                        linkedin_url=lu_url_input if lu_url_input else None,
-                                        nome_completo=lu_nome_input if lu_nome_input else None
-                                    )
-                                    if res_lu.get("encontrado"):
-                                        st.success("Lead enriquecido com sucesso via Lusha!")
-                                        st.rerun()
-                                    else:
-                                        st.warning(res_lu.get("mensagem", "Contato não localizado."))
+                            col_b_rr, col_b_lu = st.columns(2)
+                            with col_b_rr:
+                                if st.button("🎯 RocketReach", key=f"btn_rr_{lid}", help="Consulta contatos verificados via RocketReach API v2 com validação estrita de ICP elétrico."):
+                                    with st.spinner("Consultando RocketReach API..."):
+                                        res_rr = enriquecer_lead_por_id(
+                                            lead_id=lid,
+                                            linkedin_url=lu_url_input if lu_url_input else None,
+                                            nome_completo=lu_nome_input if lu_nome_input else None,
+                                            motor="rocketreach"
+                                        )
+                                        if res_rr.get("encontrado"):
+                                            st.success("Lead enriquecido com sucesso via RocketReach!")
+                                            st.rerun()
+                                        else:
+                                            st.warning(res_rr.get("mensagem", "Contato não localizado no RocketReach."))
+                            with col_b_lu:
+                                if st.button("⚡ Lusha", key=f"btn_lu_{lid}", help="Consulta contatos via Lusha API com validação estrita de ICP elétrico."):
+                                    with st.spinner("Consultando Lusha API..."):
+                                        res_lu = enriquecer_lead_por_id(
+                                            lead_id=lid,
+                                            linkedin_url=lu_url_input if lu_url_input else None,
+                                            nome_completo=lu_nome_input if lu_nome_input else None,
+                                            motor="lusha"
+                                        )
+                                        if res_lu.get("encontrado"):
+                                            st.success("Lead enriquecido com sucesso via Lusha!")
+                                            st.rerun()
+                                        else:
+                                            st.warning(res_lu.get("mensagem", "Contato não localizado no Lusha."))
 
+                    # Painel de Cadência & Follow-up Periódico
+                    eh_lead_contatado = st_lead in [
+                        "ENVIADO", "CONTATO_INICIAL_ENVIADO",
+                        "FOLLOW_UP_1_PENDENTE", "FOLLOW_UP_1_ENVIADO",
+                        "FOLLOW_UP_2_PENDENTE", "FOLLOW_UP_2_ENVIADO",
+                        "BREAK_UP_PENDENTE", "ENCERRADO_SEM_RESPOSTA"
+                    ]
+                    
+                    if eh_lead_contatado and not lead.get("bloqueado_prospeccao_fria"):
+                        st.markdown("---")
+                        st.markdown("#### ⏳ Cadência de Acompanhamento Periódico (Lucas Campos)")
+                        c_cad1, c_cad2 = st.columns([3, 2])
+                        with c_cad1:
+                            st.write(f"📅 **Último disparo:** `{lead.get('data_envio', 'N/D')}` ({dias_envio} dia(s) transcorridos)")
+                            etapa_atual = lead.get("etapa_followup", 0)
+                            if dias_envio >= 3 and etapa_atual == 0:
+                                st.warning("💡 **Recomendação:** Mais de 3 dias sem resposta. Recomendado avançar para o **Follow-up 1** (Reforço de Valor & Confirmação).")
+                            elif dias_envio >= 7 and etapa_atual == 1:
+                                st.warning("💡 **Recomendação:** Mais de 7 dias do contato. Recomendado avançar para o **Follow-up 2** (Estudo de Caso & Reunião de 15 min).")
+                            elif dias_envio >= 14 and etapa_atual == 2:
+                                st.info("💡 **Recomendação:** Mais de 14 dias sem interação. Recomendado disparar o **Break-up Email** para encerramento elegante.")
+                            elif etapa_atual == 0:
+                                st.caption("ℹ️ Lead em janela de resposta inicial. Aguardando tempo hábil antes do próximo follow-up.")
+
+                        with c_cad2:
+                            if etapa_atual == 0:
+                                if st.button("⏩ Gerar Follow-up 1 (Valor & Confirmação)", key=f"btn_f1_{lid}"):
+                                    res_f = avancar_etapa_followup(lid, 1)
+                                    st.success(res_f["mensagem"])
+                                    st.rerun()
+                            elif etapa_atual == 1:
+                                if st.button("⏩ Gerar Follow-up 2 (Case & Reunião 15m)", key=f"btn_f2_{lid}"):
+                                    res_f = avancar_etapa_followup(lid, 2)
+                                    st.success(res_f["mensagem"])
+                                    st.rerun()
+                            elif etapa_atual == 2:
+                                if st.button("🛑 Gerar Break-up Email (Encerramento)", key=f"btn_f3_{lid}"):
+                                    res_f = avancar_etapa_followup(lid, 3)
+                                    st.success(res_f["mensagem"])
+                                    st.rerun()
+
+                        # Passagem de Bastão / Fechamento de Contrato
+                        with st.expander("🤝 Cliente Respondeu? Passagem de Bastão para Especialista", expanded=False):
+                            st.caption("Ao receber resposta ou fechar contrato, Lucas transfere a custódia do cliente para o especialista responsável:")
+                            col_tr1, col_tr2 = st.columns([3, 2])
+                            with col_tr1:
+                                opcoes_esp = {
+                                    "BEATRIZ": "Beatriz Silveira (Sucesso do Cliente • Contratos, ART, DataBook, Onboarding)",
+                                    "RAFAEL": "Eng. Rafael Gomes (Engenharia de Proteção • Estudos ETAP, ANSI 50/51/51N/51V)",
+                                    "CARLOS": "Eng. Carlos Tenaglia (Comissionamento & Campo • TAF/TAC, Ensaios de Relés)",
+                                    "MARIANA": "Mariana Esteves (Marketing Técnico • Estudo de Caso de Autoridade)"
+                                }
+                                esp_alvo = st.selectbox(
+                                    "Transferir Custódia para Especialista:",
+                                    options=list(opcoes_esp.keys()),
+                                    format_func=lambda k: opcoes_esp[k],
+                                    key=f"esp_{lid}"
+                                )
+                            with col_tr2:
+                                st.write("")
+                                st.write("")
+                                chk_fechado = st.checkbox("🏆 Contrato Fechado!", key=f"chk_fech_{lid}", help="Marca como Contrato Fechado e bloqueia prospecção fria permanentemente.")
+                            
+                            motivo_padrao = "Contrato assinado. Iniciar onboarding, cronograma e emissão de ART." if chk_fechado else "Cliente respondeu ao contato comercial demonstrando interesse técnico."
+                            motivo_input = st.text_input("Motivo da Transferência / Contexto:", value=motivo_padrao, key=f"motivo_{lid}")
+                            obs_input = st.text_area("Instruções Técnicas para o Especialista:", placeholder="Ex: Cliente tem parada prevista para o mês que vem e solicitou reunião com a engenharia.", key=f"obs_{lid}")
+
+                            if st.button(f"🚀 Confirmar Transferência para {FUNCIONARIOS[esp_alvo]['nome']}", key=f"btn_tr_{lid}", type="primary"):
+                                res_tr = transferir_lead_para_especialista(
+                                    lead_id=lid,
+                                    funcionario_id=esp_alvo,
+                                    motivo=motivo_input,
+                                    observacoes=obs_input,
+                                    fechar_contrato=chk_fechado
+                                )
+                                if res_tr["sucesso"]:
+                                    st.success(res_tr["mensagem"])
+                                    st.rerun()
+                                else:
+                                    st.error(res_tr["mensagem"])
+
+                    st.markdown("---")
                     st.markdown("#### ✉️ Proposta de E-mail Estruturada por Lucas Campos")
                     c_dest1, c_dest2 = st.columns([2, 1])
                     with c_dest1:
@@ -581,44 +855,58 @@ with tab_prospeccao:
 
                     col_act1, col_act2, col_act3 = st.columns([2, 1, 1])
                     with col_act1:
-                        if lead.get("status") != "ENVIADO":
-                            if st.button("🚀 Disparar E-mail com Anexos (Titan SMTP)", key=f"btn_send_{lid}", type="primary"):
-                                if not email_dest_input or "@" not in email_dest_input:
-                                    st.warning("⚠️ O e-mail verificado do gestor elétrico é obrigatório para prosseguir com o disparo.")
-                                elif eh_empresa_bloqueada(email_dest_input) or eh_empresa_bloqueada(lead.get("dominio", "")):
-                                    st.warning("ℹ️ Envio não permitido: O domínio @sma-eng.com.br não deve ser prospectado como lead.")
-                                else:
-                                    with st.spinner(f"Lucas Campos conectando à conta Titan e enviando para {email_dest_input}..."):
-                                        res_envio = enviar_email_funcionario(
-                                            funcionario_id="LUCAS",
-                                            destinatario=email_dest_input,
-                                            assunto=assunto_input,
-                                            corpo_texto=corpo_input,
-                                            anexos=lead.get("anexos", [])
-                                        )
-                                        if res_envio["sucesso"]:
-                                            st.success(f"✅ {res_envio['mensagem']}")
-                                            atualizar_lead_campanha(lid, {
-                                                "status": "ENVIADO",
-                                                "contato_nome": contato_nome_input,
-                                                "email_destinatario": email_dest_input,
-                                                "assunto": assunto_input,
-                                                "corpo_email": corpo_input,
-                                                "data_envio": time.strftime("%d/%m/%Y %H:%M"),
-                                                "resultado_envio": res_envio["mensagem"]
-                                            })
-                                            st.rerun()
-                                        else:
-                                            st.error(f"❌ {res_envio['erro']}")
-                                            atualizar_lead_campanha(lid, {
-                                                "status": "ERRO",
-                                                "resultado_envio": res_envio["erro"]
-                                            })
+                        if not lead.get("bloqueado_prospeccao_fria"):
+                            pode_disparar = st_lead in ["PRONTO_PARA_DISPARO", "FOLLOW_UP_1_PENDENTE", "FOLLOW_UP_2_PENDENTE", "BREAK_UP_PENDENTE", "ERRO"]
+                            rotulo_btn = "🚀 Disparar Follow-up (Titan SMTP)" if "FOLLOW_UP" in st_lead or "BREAK_UP" in st_lead else "🚀 Disparar E-mail com Anexos (Titan SMTP)"
+                            if pode_disparar:
+                                if st.button(rotulo_btn, key=f"btn_send_{lid}", type="primary"):
+                                    if not email_dest_input or "@" not in email_dest_input:
+                                        st.warning("⚠️ O e-mail verificado do gestor elétrico é obrigatório para prosseguir com o disparo.")
+                                    elif eh_empresa_bloqueada(email_dest_input) or eh_empresa_bloqueada(lead.get("dominio", "")):
+                                        st.warning("ℹ️ Envio não permitido: O domínio @sma-eng.com.br não deve ser prospectado como lead.")
+                                    else:
+                                        with st.spinner(f"Lucas Campos conectando à conta Titan e enviando para {email_dest_input}..."):
+                                            res_envio = enviar_email_funcionario(
+                                                funcionario_id="LUCAS",
+                                                destinatario=email_dest_input,
+                                                assunto=assunto_input,
+                                                corpo_texto=corpo_input,
+                                                anexos=lead.get("anexos", [])
+                                            )
+                                            if res_envio["sucesso"]:
+                                                st.success(f"✅ {res_envio['mensagem']}")
+                                                if st_lead == "FOLLOW_UP_1_PENDENTE":
+                                                    novo_st = "FOLLOW_UP_1_ENVIADO"
+                                                elif st_lead == "FOLLOW_UP_2_PENDENTE":
+                                                    novo_st = "FOLLOW_UP_2_ENVIADO"
+                                                elif st_lead == "BREAK_UP_PENDENTE":
+                                                    novo_st = "ENCERRADO_SEM_RESPOSTA"
+                                                else:
+                                                    novo_st = "CONTATO_INICIAL_ENVIADO"
+
+                                                atualizar_lead_campanha(lid, {
+                                                    "status": novo_st,
+                                                    "contato_nome": contato_nome_input,
+                                                    "email_destinatario": email_dest_input,
+                                                    "assunto": assunto_input,
+                                                    "corpo_email": corpo_input,
+                                                    "data_envio": time.strftime("%d/%m/%Y %H:%M"),
+                                                    "resultado_envio": res_envio["mensagem"]
+                                                })
+                                                st.rerun()
+                                            else:
+                                                st.error(f"❌ {res_envio['erro']}")
+                                                atualizar_lead_campanha(lid, {
+                                                    "status": "ERRO",
+                                                    "resultado_envio": res_envio["erro"]
+                                                })
+                            else:
+                                st.success(f"✅ Disparo registrado em {lead.get('data_envio')} para `{lead.get('email_destinatario')}`!")
+                                if st.button("🔄 Reabrir para Novo Envio", key=f"btn_resend_{lid}"):
+                                    atualizar_lead_campanha(lid, {"status": "PRONTO_PARA_DISPARO"})
+                                    st.rerun()
                         else:
-                            st.success(f"✅ E-mail enviado com sucesso em {lead.get('data_envio')} para `{lead.get('email_destinatario')}`!")
-                            if st.button("🔄 Reenviar E-mail", key=f"btn_resend_{lid}"):
-                                atualizar_lead_campanha(lid, {"status": "PRONTO_PARA_DISPARO"})
-                                st.rerun()
+                            st.info(f"🔒 Contato comercial frio finalizado. Lead em atendimento técnico oficial com {custodia_nome}.")
 
                     with col_act2:
                         if st.button("💾 Salvar Alterações", key=f"btn_save_{lid}"):
@@ -702,18 +990,44 @@ with tab_prospeccao:
             st.markdown("### 📧 Disparo Oficial de E-mail via Lucas Campos")
             st.caption("Envio autônomo diretamente da conta institucional `lucas.campos@krconsultoria.com.br` via Titan SMTP.")
 
-            # Widget Lusha API para Prospecção Sob Demanda
-            with st.expander("⚡ Consultar Lusha API (Obter E-mail Verificado & Celular Direto)", expanded=True):
-                st.caption("Consulte diretamente o perfil do gestor no Lusha para auto-preencher o e-mail verificado e telefone.")
-                col_lu_m2_1, col_lu_m2_2, col_lu_m2_3 = st.columns([3, 2, 2])
+            # Widget RocketReach & Lusha API para Prospecção Sob Demanda
+            with st.expander("⚡ Consultar RocketReach / Lusha API (Obter E-mail Verificado & Celular Direto)", expanded=True):
+                st.caption("Consulte diretamente o perfil do gestor no RocketReach ou Lusha para auto-preencher o e-mail verificado e telefone.")
+                col_lu_m2_1, col_lu_m2_2, col_lu_m2_3 = st.columns([3, 2, 3])
                 with col_lu_m2_1:
                     lu_m2_url = st.text_input("URL do Perfil no LinkedIn do Decisor:", placeholder="https://www.linkedin.com/in/...", key="lu_m2_url")
                 with col_lu_m2_2:
-                    lu_m2_nome = st.text_input("Ou Nome do Decisor:", placeholder="Ex: Roberto Silva", key="lu_m2_nome")
+                    lu_m2_nome = st.text_input("Ou Nome do Decisor:", placeholder="Ex: Rodrigo Santos", key="lu_m2_nome")
                 with col_lu_m2_3:
                     st.write("")
                     st.write("")
-                    btn_lu_m2 = st.button("⚡ Buscar no Lusha", key="btn_lu_m2")
+                    col_b2_rr, col_b2_lu = st.columns(2)
+                    with col_b2_rr:
+                        btn_rr_m2 = st.button("🎯 RocketReach", key="btn_rr_m2", help="Buscar no RocketReach API v2")
+                    with col_b2_lu:
+                        btn_lu_m2 = st.button("⚡ Lusha", key="btn_lu_m2", help="Buscar no Lusha API")
+
+                if btn_rr_m2:
+                    if not lu_m2_url and not lu_m2_nome:
+                        st.warning("Informe o link do LinkedIn ou o Nome do Decisor.")
+                    else:
+                        with st.spinner("Consultando RocketReach API..."):
+                            res_rr = consultar_perfil_rocketreach(
+                                linkedin_url=lu_m2_url if lu_m2_url else None,
+                                nome=lu_m2_nome if lu_m2_nome else None,
+                                empresa=st.session_state.get('empresa_atual', '')
+                            )
+                            if res_rr.get("encontrado") and res_rr.get("dados"):
+                                d_rr = res_rr["dados"]
+                                st.session_state.m2_email_dest = d_rr.get("email_principal", "")
+                                st.success(f"🎯 Contato localizado no RocketReach: **{d_rr.get('nome_completo')}** ({d_rr.get('cargo')})")
+                                if d_rr.get("email_principal"):
+                                    st.info(f"📧 E-mail Corporativo Verificado: `{d_rr.get('email_principal')}`")
+                                if d_rr.get("telefones_formatados"):
+                                    st.write("📞 Telefones: " + ", ".join(d_rr.get("telefones_formatados")))
+                                st.rerun()
+                            else:
+                                st.warning(f"⚠️ {res_rr.get('mensagem', 'Contato não localizado no RocketReach.')}")
 
                 if btn_lu_m2:
                     if not lu_m2_url and not lu_m2_nome:
@@ -735,7 +1049,7 @@ with tab_prospeccao:
                             if res_m2.get("encontrado") and res_m2.get("dados"):
                                 d_m2 = res_m2["dados"]
                                 st.session_state.m2_email_dest = d_m2.get("email_principal", "")
-                                st.success(f"🎯 Contato localizado: **{d_m2.get('nome_completo')}** ({d_m2.get('cargo')})")
+                                st.success(f"🎯 Contato localizado no Lusha: **{d_m2.get('nome_completo')}** ({d_m2.get('cargo')})")
                                 if d_m2.get("email_principal"):
                                     st.info(f"📧 E-mail Corporativo Verificado: `{d_m2.get('email_principal')}`")
                                 if d_m2.get("telefones_formatados"):

@@ -19,6 +19,7 @@ if not GOOGLE_API_KEY:
 # Chaves de API das plataformas B2B de Prospecção
 LUSHA_API_KEY = os.getenv("LUSHA_API_KEY", "")
 APOLLO_API_KEY = os.getenv("APOLLO_API_KEY", "")
+ROCKETREACH_API_KEY = os.getenv("ROCKETREACH_API_KEY", "")
 
 # Domínios excluídos da prospecção de novos leads pelo Lucas
 DOMINIOS_BLOQUEADOS_PROSPECCAO = [

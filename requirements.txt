@@ -4,3 +4,5 @@ python-dotenv
 markdown
 streamlit
 reportlab
+streamlit-cookies-controller
+itsdangerous
